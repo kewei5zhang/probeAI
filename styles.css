@@ -52,6 +52,7 @@
 .chat-header {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   padding: 15px 20px;
   background: rgba(255, 255, 255, 0.1);
   border-radius: 12px 12px 0 0;
@@ -1210,10 +1211,9 @@
 /* Header Controls */
 .header-content {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  width: 100%;
-  /* Remove conflicting padding - parent .chat-header already has padding */
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
 }
 
 .chat-title {

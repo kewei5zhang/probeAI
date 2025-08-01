@@ -440,7 +440,10 @@ ${Object.keys(this.screenshots).length > 0 ?
     chatContainer.innerHTML = `
       <div class="chat-header" id="chat-header">
         <div class="drag-handle">⋮⋮</div>
-        <h3>🤖 Trading AI</h3>
+        <div class="header-content">
+          <h3>🤖 Trading AI</h3>
+          <div class="current-provider-display" id="provider-status">GPT-4o</div>
+        </div>
         <div class="header-controls">
           <button id="settings-btn" class="settings-btn" title="Settings">⚙️</button>
           <button id="chat-toggle" class="chat-toggle" title="Expand chat">+</button>
@@ -537,10 +540,9 @@ ${Object.keys(this.screenshots).length > 0 ?
               
               <div class="provider-settings">
                 <div class="model-selection">
-                  <label class="model-label">Vision Model:</label>
+                  <label class="model-label">Model:</label>
                   <select id="openai-model-select">
                     <option value="gpt-4o">GPT-4o (Recommended)</option>
-                    <option value="gpt-4-vision-preview">GPT-4 Vision Preview</option>
                   </select>
                 </div>
                 
@@ -569,10 +571,9 @@ ${Object.keys(this.screenshots).length > 0 ?
               
               <div class="provider-settings">
                 <div class="model-selection">
-                  <label class="model-label">Vision Model:</label>
+                  <label class="model-label">Model:</label>
                   <select id="grok-model-select">
-                    <option value="grok-vision-beta" selected>Grok Vision Beta (Recommended)</option>
-                    <option value="grok-2-vision-1212">Grok-2 Vision 1212</option>
+                    <option value="grok-4">Grok-4 (Recommended)</option>
                   </select>
                 </div>
                 
@@ -592,7 +593,7 @@ ${Object.keys(this.screenshots).length > 0 ?
             <div class="api-key-help">
               <h4>🔑 Getting API Keys</h4>
               <p style="font-size: 12px; color: #888; margin-bottom: 12px;">
-                📸 Only vision-capable models are shown. These models can analyze your TradingView charts.
+                🚀 Currently showing the best vision models. More models will be added soon for advanced users.
               </p>
               <div class="help-links">
                 <a href="https://platform.openai.com/api-keys" target="_blank">
@@ -1055,22 +1056,26 @@ ${Object.keys(this.screenshots).length > 0 ?
     } catch (error) {
       console.error('Analysis failed:', error);
       
-      // Provide specific error messages
+      // Provide specific error messages with better error handling
       let errorMessage;
-      if (error.message.includes('Extension context invalidated')) {
+      const errorText = error?.message || error?.toString() || String(error);
+      
+      if (errorText.includes('Extension context invalidated')) {
         errorMessage = '🔄 Extension was reloaded. Please refresh this page and try again.';
-      } else if (error.message.includes('Rate limit exceeded')) {
-        errorMessage = '⏱️ OpenAI rate limit reached. Please wait 60 seconds and try again.';
-      } else if (error.message.includes('Invalid API key')) {
-        errorMessage = '🔑 Invalid API key. Please check your OpenAI API key in the extension popup.';
-      } else if (error.message.includes('Access denied')) {
-        errorMessage = '🚫 API access denied. Make sure your OpenAI account has GPT-4 Vision access.';
-      } else if (error.message.includes('API key')) {
-        errorMessage = '🔑 Please check your OpenAI API key in the extension popup.';
-      } else if (error.message.includes('Failed to capture')) {
+      } else if (errorText.includes('Rate limit exceeded')) {
+        errorMessage = '⏱️ API rate limit reached. Please wait 60 seconds and try again.';
+      } else if (errorText.includes('Invalid API key')) {
+        errorMessage = '🔑 Invalid API key. Please check your API key in the extension settings.';
+      } else if (errorText.includes('Access denied')) {
+        errorMessage = '🚫 API access denied. Make sure your API key has vision model access.';
+      } else if (errorText.includes('API key')) {
+        errorMessage = '🔑 Please check your API key in the extension settings.';
+      } else if (errorText.includes('Failed to capture')) {
         errorMessage = '📸 Screenshot failed. Please grant permissions and try again.';
+      } else if (errorText.includes('DOMException') || error instanceof DOMException) {
+        errorMessage = '📸 Screenshot capture failed. Please try again or refresh the page.';
       } else {
-        errorMessage = `❌ Analysis failed: ${error.message}`;
+        errorMessage = `❌ Analysis failed: ${errorText}`;
       }
       
       this.addMessage('ai', errorMessage);
@@ -1130,16 +1135,15 @@ ${Object.keys(this.screenshots).length > 0 ?
           content: [
             {
               type: 'text',
-              text: `Please analyze this TradingView chart for the **${timeframe} timeframe** and provide structured technical analysis insights. Focus on:
+              text: `Analyze this TradingView chart for **${timeframe} timeframe**. Provide structured analysis covering:
 
-1. **Price Action**: Current trend, support/resistance levels specific to ${timeframe}
-2. **Technical Indicators**: What indicators are visible and their ${timeframe} signals
-3. **Chart Patterns**: Any recognizable patterns forming on ${timeframe}
-4. **Entry/Exit Points**: Trading opportunities suitable for ${timeframe} timeframe
-5. **Risk Management**: Stop-loss and take-profit levels appropriate for ${timeframe}
-6. **Timeframe Context**: How this ${timeframe} view fits into broader market structure
+**1. Price Action** - Current trend, key support/resistance levels
+**2. Support/Resistance** - Specific price levels with reasoning  
+**3. Technical Setup** - Visible indicators and signals
+**4. Trading Opportunities** - Entry/exit points for ${timeframe}
+**5. Risk Management** - Stop-loss and take-profit levels
 
-Please be specific about price levels and consider that this is a ${timeframe} analysis. Provide actionable insights for traders using this timeframe. Keep this initial analysis structured and comprehensive.`
+Be specific with price levels and actionable. **IMPORTANT: Keep response under 500 words maximum. Be concise and focus only on the most critical insights.**`
             },
             {
               type: 'image_url',
@@ -1184,6 +1188,8 @@ Please analyze ALL the provided timeframes comprehensively and focus on:
 • Provide specific entry/exit strategies that work across timeframes
 • Risk management advice based on multi-timeframe view
 
+**IMPORTANT: Keep response under 500 words maximum. Focus only on the most critical cross-timeframe insights and actionable recommendations.**
+
 Here are the charts for analysis:`
           }
         ];
@@ -1205,7 +1211,7 @@ Here are the charts for analysis:`
         messages = [
           {
             role: 'system',
-            content: `Quick multi-timeframe analysis. Be brief.`
+            content: `Quick multi-timeframe analysis. Be very brief and focused. Keep response under 500 words maximum - only the most critical insights.`
           },
           {
             role: 'user',
@@ -1231,7 +1237,9 @@ Here are the charts for analysis:`
 😄 **Tone**: Enthusiastic about trading, use appropriate emojis, occasional trading humor
 💡 **Approach**: Give practical advice like you're chatting with a fellow trader
 
-For regular chat responses (not initial analysis), be natural and conversational. Use trading slang when appropriate, add personality, and make it enjoyable. Think like a knowledgeable friend who happens to be great at TA.`
+For regular chat responses (not initial analysis), be natural and conversational. Use trading slang when appropriate, add personality, and make it enjoyable. Think like a knowledgeable friend who happens to be great at TA.
+
+**IMPORTANT: Keep responses under 500 words maximum. Be very concise - answer the specific question directly without lengthy explanations.**`
           },
           {
             role: 'user',
@@ -1272,11 +1280,12 @@ For regular chat responses (not initial analysis), be natural and conversational
     const requestBody = JSON.stringify({
       model: apiConfig.model,
       messages: messages,
-      max_tokens: 450,  // Balanced: Enough for complete responses
+      max_tokens: 1000,  // Balanced: ~750 words - comprehensive but reliable
       temperature: 0.5  // Balanced: Good creativity with consistency
     });
     const requestSizeKB = Math.round(requestBody.length / 1024);
     console.log(`⏱️ Sending ${requestSizeKB}KB request to ${apiConfig.name} (${apiConfig.model})...`);
+    console.log(`🎯 Balanced limits: max_tokens=1000 (~750 words) for comprehensive yet reliable responses`);
     console.log(`🔍 API Details:`, {
       endpoint: apiConfig.endpoint,
       model: apiConfig.model,
@@ -1288,7 +1297,7 @@ For regular chat responses (not initial analysis), be natural and conversational
     console.log(`🔍 Request Body Preview:`, JSON.stringify({
       model: apiConfig.model,
       messages: messages.slice(0, 1), // Just show first message structure
-      max_tokens: 450,
+      max_tokens: 1000,
       temperature: 0.5
     }, null, 2));
     
@@ -1296,7 +1305,7 @@ For regular chat responses (not initial analysis), be natural and conversational
     
     // Create AbortController for timeout handling
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 20000); // Balanced: 20 second timeout
+    const timeoutId = setTimeout(() => controller.abort(), 30000); // Extended: 30 second timeout for larger responses
     
     const requestHeaders = {
       'Content-Type': 'application/json',
@@ -1352,7 +1361,7 @@ For regular chat responses (not initial analysis), be natural and conversational
       } else if (response.status === 400) {
         // Check if it's a vision-related error
         if (responseBody.includes('image') || responseBody.includes('vision') || responseBody.includes('multimodal')) {
-          errorMessage = `Vision not supported. The model "${apiConfig.model}" may not support image analysis. Please use a vision-capable model like gpt-4o or gpt-4-vision-preview.`;
+          errorMessage = `Vision not supported. The model "${apiConfig.model}" may not support image analysis. Please check your API key and model settings.`;
         } else {
           errorMessage = `Bad request. ${responseBody.slice(0, 200)}`;
         }
@@ -1513,6 +1522,12 @@ For regular chat responses (not initial analysis), be natural and conversational
       formattedContent = this.formatAIResponse(content);
     }
     
+    // Handle large content with chunked DOM processing to prevent DOMException
+    if (formattedContent.length > 3000) {
+      console.log(`📄 Large content detected (${formattedContent.length} chars), using chunked processing`);
+      return this.addLargeMessage(messageDiv, type, content, formattedContent, messagesContainer);
+    }
+    
     // Add copy button for AI messages
     const copyButton = type === 'ai' ? `
       <button class="copy-btn" title="Copy message" style="position: absolute; top: 6px; right: 6px;">
@@ -1520,11 +1535,36 @@ For regular chat responses (not initial analysis), be natural and conversational
       </button>
     ` : '';
     
-    messageDiv.innerHTML = `
-      <div class="message-content">${formattedContent}</div>
-      <div class="message-time">${new Date().toLocaleTimeString()}</div>
-      ${copyButton}
-    `;
+    // Use DocumentFragment for better performance
+    const fragment = document.createDocumentFragment();
+    const contentDiv = document.createElement('div');
+    contentDiv.className = 'message-content';
+    
+    try {
+      contentDiv.innerHTML = formattedContent;
+    } catch (error) {
+      console.warn('🔧 innerHTML failed, using textContent fallback:', error);
+      contentDiv.textContent = content; // Fallback to plain text
+    }
+    
+    const timeDiv = document.createElement('div');
+    timeDiv.className = 'message-time';
+    timeDiv.textContent = new Date().toLocaleTimeString();
+    
+    fragment.appendChild(contentDiv);
+    fragment.appendChild(timeDiv);
+    
+    // Add copy button for AI messages
+    if (type === 'ai') {
+      const copyBtn = document.createElement('button');
+      copyBtn.className = 'copy-btn';
+      copyBtn.title = 'Copy message';
+      copyBtn.textContent = '📋';
+      copyBtn.style.cssText = 'position: absolute; top: 6px; right: 6px;';
+      fragment.appendChild(copyBtn);
+    }
+    
+    messageDiv.appendChild(fragment);
     
     // Ensure messageDiv has proper positioning context
     messageDiv.style.position = 'relative';
@@ -1534,66 +1574,7 @@ For regular chat responses (not initial analysis), be natural and conversational
     if (type === 'ai') {
       const copyBtn = messageDiv.querySelector('.copy-btn');
       if (copyBtn) {
-        copyBtn.addEventListener('click', async (e) => {
-          e.stopPropagation();
-          e.preventDefault();
-          
-          console.log('🖱️ Copy button clicked'); // Debug log
-          
-          // Get the original unformatted content
-          let textToCopy = content;
-          
-          // If that's not available, extract text from HTML but clean it up
-          if (!textToCopy) {
-            const messageContentEl = messageDiv.querySelector('.message-content');
-            if (messageContentEl) {
-              // Get text content and clean up extra whitespace
-              textToCopy = messageContentEl.textContent || messageContentEl.innerText || '';
-              textToCopy = textToCopy.replace(/\s+/g, ' ').trim();
-            }
-          }
-          
-          console.log('📋 Copying text:', textToCopy.substring(0, 100) + '...'); // Debug log (truncated)
-          
-          try {
-            await navigator.clipboard.writeText(textToCopy);
-            
-            // Success feedback
-            const originalText = copyBtn.textContent;
-            const originalTitle = copyBtn.title;
-            
-            copyBtn.textContent = '✅';
-            copyBtn.title = 'Copied!';
-            copyBtn.classList.add('copy-success');
-            
-            // Reset after 2 seconds
-            setTimeout(() => {
-              copyBtn.textContent = originalText;
-              copyBtn.title = originalTitle;
-              copyBtn.classList.remove('copy-success');
-            }, 2000);
-            
-            console.log('✅ Text copied successfully');
-            
-          } catch (err) {
-            console.error('❌ Failed to copy text:', err);
-            
-            // Error feedback
-            const originalText = copyBtn.textContent;
-            const originalTitle = copyBtn.title;
-            
-            copyBtn.textContent = '❌';
-            copyBtn.title = 'Copy failed!';
-            copyBtn.classList.add('copy-error');
-            
-            // Reset after 2 seconds
-            setTimeout(() => {
-              copyBtn.textContent = originalText;
-              copyBtn.title = originalTitle;
-              copyBtn.classList.remove('copy-error');
-            }, 2000);
-          }
-        });
+        this.setupCopyButton(copyBtn, content);
       }
     }
 
@@ -1608,6 +1589,158 @@ For regular chat responses (not initial analysis), be natural and conversational
     return messageDiv; // Return element for manipulation (e.g., removing loading messages)
   }
 
+  // Handle large messages with progressive DOM loading to prevent DOMException
+  // This system processes responses >3KB in 1KB chunks to avoid DOM overload while maintaining formatting
+  addLargeMessage(messageDiv, type, originalContent, formattedContent, messagesContainer) {
+    console.log(`🔄 Processing large message with progressive loading...`);
+    
+    // Create basic structure first
+    const contentDiv = document.createElement('div');
+    contentDiv.className = 'message-content';
+    
+    const timeDiv = document.createElement('div');
+    timeDiv.className = 'message-time';
+    timeDiv.textContent = new Date().toLocaleTimeString();
+    
+    messageDiv.appendChild(contentDiv);
+    messageDiv.appendChild(timeDiv);
+    
+    // Add copy button for AI messages
+    if (type === 'ai') {
+      const copyBtn = document.createElement('button');
+      copyBtn.className = 'copy-btn';
+      copyBtn.title = 'Copy message';
+      copyBtn.textContent = '📋';
+      copyBtn.style.cssText = 'position: absolute; top: 6px; right: 6px;';
+      messageDiv.appendChild(copyBtn);
+      
+      // Set up copy functionality
+      this.setupCopyButton(copyBtn, originalContent);
+    }
+    
+    messageDiv.style.position = 'relative';
+    messageDiv.style.overflow = 'visible';
+    
+    // Add to DOM first
+    messagesContainer.appendChild(messageDiv);
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    
+    // Show loading state initially with progress indicator
+    contentDiv.innerHTML = '🔄 Loading comprehensive response...<br><small style="color: #888;">Processing large content for optimal display</small>';
+    
+    // Process content in chunks to avoid DOM limitations
+    setTimeout(() => {
+      try {
+        this.processLargeContentInChunks(contentDiv, formattedContent);
+      } catch (error) {
+        console.warn('🔧 Chunked processing failed, using plain text:', error);
+        contentDiv.textContent = originalContent;
+      }
+    }, 50); // Small delay to allow DOM to stabilize
+    
+    this.messageCount++;
+    this.cleanupOldMessages();
+    
+    return messageDiv;
+  }
+
+  // Process large content in small chunks to prevent DOM overload
+  processLargeContentInChunks(contentDiv, formattedContent) {
+    const chunkSize = 1000; // Process 1KB at a time for maximum reliability
+    const chunks = [];
+    
+    // Split content into manageable chunks
+    for (let i = 0; i < formattedContent.length; i += chunkSize) {
+      chunks.push(formattedContent.slice(i, i + chunkSize));
+    }
+    
+    console.log(`📦 Split large content into ${chunks.length} chunks`);
+    
+    // Clear loading message
+    contentDiv.innerHTML = '';
+    
+    // Process chunks progressively
+    let currentChunk = 0;
+    
+    const processNextChunk = () => {
+      if (currentChunk < chunks.length) {
+        try {
+          // Create a temporary container for this chunk
+          const tempDiv = document.createElement('div');
+          tempDiv.innerHTML = chunks[currentChunk];
+          
+          // Move all children from temp container to main content
+          while (tempDiv.firstChild) {
+            contentDiv.appendChild(tempDiv.firstChild);
+          }
+          
+          currentChunk++;
+          
+          // Process next chunk after a tiny delay
+          if (currentChunk < chunks.length) {
+            setTimeout(processNextChunk, 5);
+          } else {
+            console.log('✅ Large content processing complete');
+          }
+        } catch (error) {
+          console.error(`❌ Error processing chunk ${currentChunk}:`, error);
+          // Fallback: append remaining content as text
+          const remainingText = chunks.slice(currentChunk).join('');
+          const textNode = document.createTextNode(remainingText);
+          contentDiv.appendChild(textNode);
+        }
+      }
+    };
+    
+    processNextChunk();
+  }
+
+  // Separate function to set up copy button functionality
+  setupCopyButton(copyBtn, originalContent) {
+    copyBtn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      e.preventDefault();
+      
+      console.log('🖱️ Copy button clicked');
+      
+      try {
+        await navigator.clipboard.writeText(originalContent);
+        
+        // Success feedback
+        const originalText = copyBtn.textContent;
+        const originalTitle = copyBtn.title;
+        
+        copyBtn.textContent = '✅';
+        copyBtn.title = 'Copied!';
+        copyBtn.classList.add('copy-success');
+        
+        setTimeout(() => {
+          copyBtn.textContent = originalText;
+          copyBtn.title = originalTitle;
+          copyBtn.classList.remove('copy-success');
+        }, 2000);
+        
+        console.log('✅ Text copied successfully');
+        
+      } catch (err) {
+        console.error('❌ Failed to copy text:', err);
+        
+        const originalText = copyBtn.textContent;
+        const originalTitle = copyBtn.title;
+        
+        copyBtn.textContent = '❌';
+        copyBtn.title = 'Copy failed!';
+        copyBtn.classList.add('copy-error');
+        
+        setTimeout(() => {
+          copyBtn.textContent = originalText;
+          copyBtn.title = originalTitle;
+          copyBtn.classList.remove('copy-error');
+        }, 2000);
+      }
+    });
+  }
+
   cleanupOldMessages() {
     const messagesContainer = document.getElementById('chat-messages');
     
@@ -1618,12 +1751,26 @@ For regular chat responses (not initial analysis), be natural and conversational
     }
     
     const messages = messagesContainer.children;
+    const maxMessages = 25; // Reduced for better memory management with large responses
     
     // Keep only the last maxMessages messages in DOM
-    while (messages.length > this.maxMessages) {
+    while (messages.length > maxMessages) {
       const oldMessage = messages[0];
+      
+      // Clear large content before removal to help GC
+      const contentEl = oldMessage.querySelector('.message-content');
+      if (contentEl && contentEl.innerHTML.length > 3000) {
+        console.log('🗑️ Clearing large message content before removal');
+        contentEl.innerHTML = '';
+      }
+      
       messagesContainer.removeChild(oldMessage);
       this.messageCount--;
+    }
+    
+    // Log cleanup for debugging
+    if (messages.length >= maxMessages - 5) {
+      console.log(`🧹 Message cleanup: ${messages.length}/${maxMessages} messages in DOM`);
     }
     
     // Force garbage collection hint (if available)
@@ -1657,36 +1804,39 @@ For regular chat responses (not initial analysis), be natural and conversational
       
       this.currentProvider = result.ai_provider || 'openai';
       
-      // Load the model for the current provider and ensure it supports vision
-      if (this.currentProvider === 'openai') {
-        this.currentModel = result.openai_model || 'gpt-4o';
-        // Ensure we're using a vision-capable model
-        if (!this.isVisionCapableModel(this.currentModel, 'openai')) {
-          console.warn(`⚠️ Model ${this.currentModel} may not support vision, switching to gpt-4o`);
-          this.currentModel = 'gpt-4o';
+              // Load the model for the current provider and ensure it supports vision
+        if (this.currentProvider === 'openai') {
+          this.currentModel = result.openai_model || 'gpt-4o';
+          // Ensure we're using a vision-capable model
+          if (!this.isVisionCapableModel(this.currentModel, 'openai')) {
+            console.warn(`⚠️ Model ${this.currentModel} may not support vision, switching to gpt-4o`);
+            this.currentModel = 'gpt-4o';
+          }
+        } else if (this.currentProvider === 'grok') {
+          this.currentModel = result.grok_model || 'grok-4';
+          // Ensure we're using a vision-capable model
+          if (!this.isVisionCapableModel(this.currentModel, 'grok')) {
+            console.warn(`⚠️ Model ${this.currentModel} may not support vision, switching to grok-4`);
+            this.currentModel = 'grok-4';
+          }
         }
-      } else if (this.currentProvider === 'grok') {
-        this.currentModel = result.grok_model || 'grok-vision-beta';
-        // Ensure we're using a vision-capable model
-        if (!this.isVisionCapableModel(this.currentModel, 'grok')) {
-          console.warn(`⚠️ Model ${this.currentModel} may not support vision, switching to grok-vision-beta`);
-          this.currentModel = 'grok-vision-beta';
-        }
-      }
       
       console.log(`🤖 Current AI Provider: ${this.currentProvider}`);
       console.log(`🎯 Current Model: ${this.currentModel}`);
+      
+      // Update the provider display in the header
+      this.updateProviderDisplay();
     } catch (error) {
       console.error('Failed to load provider settings:', error);
       this.currentProvider = 'openai'; // Fallback to OpenAI
-      this.currentModel = 'gpt-4o'; // Fallback to vision-capable model
+      this.currentModel = 'gpt-4o'; // Fallback to best model
     }
   }
 
   isVisionCapableModel(model, provider) {
     const visionModels = {
-      openai: ['gpt-4o', 'gpt-4-vision-preview'],
-      grok: ['grok-vision-beta', 'grok-2-vision-1212']
+      openai: ['gpt-4o'],
+      grok: ['grok-4']
     };
     
     return visionModels[provider]?.includes(model) || false;
@@ -1959,16 +2109,19 @@ All stored screenshots and conversation history have been cleared from memory to
       try {
         const result = await chrome.storage.sync.get([`${newProvider}_model`]);
         this.currentModel = result[`${newProvider}_model`] || 
-          (newProvider === 'openai' ? 'gpt-4o' : 'grok-3-beta');
+          (newProvider === 'openai' ? 'gpt-4o' : 'grok-4');
       } catch (error) {
         console.error('Failed to load model for provider:', error);
-        this.currentModel = newProvider === 'openai' ? 'gpt-4o' : 'grok-3-beta';
+        this.currentModel = newProvider === 'openai' ? 'gpt-4o' : 'grok-4';
       }
     }
     
     // Update UI to show provider change
     const providerName = newProvider === 'openai' ? 'OpenAI' : 'Grok (xAI)';
     const providerIcon = newProvider === 'openai' ? '🧠' : '🚀';
+    
+    // Update the provider display in the header
+    this.updateProviderDisplay();
     
     this.addMessage('ai', `${providerIcon} **Switched to ${providerName}!**
     
@@ -2268,7 +2421,7 @@ Hey! I'm now running on ${providerName} with the ${this.currentModel} model. Don
       const grokKey = document.getElementById('grok-api-key');
       
       if (grokEnabled) grokEnabled.checked = settings.grok_enabled === true;
-      if (grokModel) grokModel.value = settings.grok_model || 'grok-3-beta';
+      if (grokModel) grokModel.value = settings.grok_model || 'grok-4';
       if (grokKey && settings.grok_api_key) {
         grokKey.value = settings.grok_api_key;
       }
@@ -2571,10 +2724,12 @@ Hey! I'm now running on ${providerName} with the ${this.currentModel} model. Don
   updateProviderDisplay(provider = null) {
     const currentProvider = provider || this.currentProvider;
     const providerConfig = this.getProviderConfig();
-    const statusElement = document.getElementById('status-text');
+    const providerElement = document.getElementById('provider-status');
     
-    if (statusElement && providerConfig) {
-      statusElement.textContent = `🤖 ${providerConfig.name} (${providerConfig.model}) - Ready to analyze!`;
+    if (providerElement && providerConfig) {
+      const icon = this.currentProvider === 'openai' ? '🧠' : '🚀';
+      providerElement.textContent = `${icon} ${providerConfig.model}`;
+      providerElement.title = `Using ${providerConfig.name} (${providerConfig.model})`;
     }
   }
 

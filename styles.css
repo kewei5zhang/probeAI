@@ -551,44 +551,16 @@
   border-bottom-color: #2a2e39;
 }
 
-/* Timeframe Selector Styles */
+/* Analyze Container Styles */
 .analyze-container {
   display: flex;
+  flex-direction: column;
   gap: 8px;
   align-items: center;
   margin-bottom: 12px;
 }
 
-.timeframe-select {
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 8px;
-  color: #fff;
-  padding: 10px 12px;
-  font-size: 14px;
-  font-family: inherit;
-  cursor: pointer;
-  transition: all 0.2s;
-  outline: none;
-  min-width: 120px;
-}
-
-.timeframe-select:hover {
-  background: rgba(255, 255, 255, 0.15);
-  border-color: rgba(0, 212, 255, 0.5);
-}
-
-.timeframe-select:focus {
-  background: rgba(255, 255, 255, 0.15);
-  border-color: #00d4ff;
-  box-shadow: 0 0 0 2px rgba(0, 212, 255, 0.2);
-}
-
-.timeframe-select option {
-  background: #1a1a2e;
-  color: #fff;
-  padding: 8px;
-}
+/* Timeframe selector removed - now auto-detected from TradingView */
 
 /* Screenshot Gallery Styles */
 .screenshot-gallery {

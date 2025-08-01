@@ -268,75 +268,50 @@ ${Object.keys(this.screenshots).length > 0 ?
 
   // Manage memory by cleaning up old timeframes when limit is reached
   manageTimeframeMemory(newTimeframe) {
-    const timeframes = Object.keys(this.screenshots);
-    const currentCount = timeframes.length;
+    // Memory management: Remove oldest screenshots when limit exceeded, replace same timeframes
+    // 30-minute auto-expiration REMOVED - screenshots persist until manually cleared or tab closed
+    // Same-timeframe replacement PRESERVED - new screenshots replace existing ones for the same timeframe
     
-    console.log(`🔍 Memory check for ${newTimeframe}:`);
-    console.log(`  - Current screenshots: ${currentCount}`);
-    console.log(`  - Max allowed: ${this.maxTimeframes}`);
-    console.log(`  - Existing timeframes: [${timeframes.join(', ')}]`);
-    console.log(`  - Is new timeframe?: ${newTimeframe ? !this.screenshots[newTimeframe] : 'N/A'}`);
+    if (!this.screenshots) {
+      this.screenshots = {};
+    }
     
-    // Only cleanup if we would exceed the limit by adding a new unique timeframe
-    // We allow exactly maxTimeframes (4) screenshots
-    if (newTimeframe && !this.screenshots[newTimeframe] && currentCount >= this.maxTimeframes) {
-      // We're adding a NEW timeframe and we're at or over the limit
-      console.log(`⚠️ CLEANUP REQUIRED: Adding new ${newTimeframe} would exceed limit`);
+    const currentCount = Object.keys(this.screenshots).length;
+    console.log(`📊 Memory check: ${currentCount}/${this.maxTimeframes} timeframes stored`);
+    
+    // If we're at capacity and adding a new timeframe, remove the oldest
+    if (currentCount >= this.maxTimeframes && newTimeframe && !this.screenshots[newTimeframe]) {
+      console.log(`🧹 CAPACITY REACHED: Removing oldest screenshot to make room for ${newTimeframe}`);
       
-      // Remove the oldest timeframe to make room for the new one
-      const oldestTimeframe = timeframes.reduce((oldest, tf) => {
-        return this.screenshots[tf].timestamp < this.screenshots[oldest].timestamp ? tf : oldest;
-      });
+      // Find the oldest screenshot by timestamp
+      let oldestTimeframe = null;
+      let oldestTimestamp = Infinity;
       
-      console.log(`🧹 Memory management: Removing old ${oldestTimeframe} screenshot to make room for ${newTimeframe}`);
-      
-      this.addMessage('ai', `🧹 Cleaned up ${oldestTimeframe} timeframe to save memory. You can take a new ${oldestTimeframe} screenshot anytime.`);
-      
-      delete this.screenshots[oldestTimeframe];
-      
-      // If we were using the removed timeframe, clear active selection
-      if (this.activeTimeframe === oldestTimeframe) {
-        this.activeTimeframe = null;
+      for (const [tf, data] of Object.entries(this.screenshots)) {
+        if (data.timestamp < oldestTimestamp) {
+          oldestTimestamp = data.timestamp;
+          oldestTimeframe = tf;
+        }
       }
       
-      this.updateGallery();
+      if (oldestTimeframe) {
+        console.log(`🗑️ Removing oldest: ${oldestTimeframe} (${Math.floor((Date.now() - oldestTimestamp) / 1000 / 60)} minutes old)`);
+        delete this.screenshots[oldestTimeframe];
+        
+        // If we were using the removed timeframe, clear active selection
+        if (this.activeTimeframe === oldestTimeframe) {
+          this.activeTimeframe = null;
+        }
+        
+        this.updateGallery();
+      }
     } else if (newTimeframe && this.screenshots[newTimeframe]) {
       console.log(`🔄 REPLACING existing ${newTimeframe} screenshot - no cleanup needed`);
     } else if (newTimeframe) {
       console.log(`✅ ADDING ${newTimeframe}: No cleanup needed (${currentCount}/${this.maxTimeframes})`);
     }
     
-    // Auto-cleanup: Remove screenshots older than 30 minutes
-    const thirtyMinutes = 30 * 60 * 1000;
-    const now = Date.now();
-    let removedAny = false;
-    
-    for (const tf of Object.keys(this.screenshots)) {
-      if (now - this.screenshots[tf].timestamp > thirtyMinutes) {
-        console.log(`⏰ Auto-cleanup: Removing expired ${tf} screenshot (>30 min old)`);
-        this.addMessage('ai', `⏰ **${tf} timeframe expired** (30+ minutes old) and was removed from storage to save memory. Take a new screenshot if you want to analyze this timeframe again.`);
-        delete this.screenshots[tf];
-        removedAny = true;
-        
-        if (this.activeTimeframe === tf) {
-          this.activeTimeframe = null;
-        }
-      }
-    }
-    
-    // Update gallery UI if any screenshots were removed
-    if (removedAny) {
-      console.log(`🧹 Updating gallery after removing expired screenshots`);
-      this.updateGallery();
-      this.updateChatStatus();
-      
-      // Log current state for debugging
-      const remainingCount = Object.keys(this.screenshots).length;
-      console.log(`📊 Gallery updated: ${remainingCount} screenshots remaining`);
-      if (remainingCount === 0) {
-        console.log(`🔄 Gallery is now empty and should be hidden`);
-      }
-    }
+    // Note: 30-minute auto-expiration removed - screenshots persist until manually cleared or tab closed
   }
 
   checkExtensionHealth() {
@@ -478,17 +453,11 @@ ${Object.keys(this.screenshots).length > 0 ?
         
         <div class="chat-controls">
           <div class="analyze-container">
-            <select id="timeframe-select" class="timeframe-select">
-              <option value="1m">1 Minute</option>
-              <option value="5m">5 Minutes</option>
-              <option value="15m">15 Minutes</option>
-              <option value="30m">30 Minutes</option>
-              <option value="1h" selected>1 Hour</option>
-              <option value="4h">4 Hours</option>
-              <option value="1d">1 Day</option>
-              <option value="1w">1 Week</option>
-            </select>
-            <button id="screenshot-btn" class="screenshot-btn">📸 Analyze Chart</button>
+            <button id="screenshot-btn" class="screenshot-btn">📸 Analyze Current Chart</button>
+            <div style="text-align: center; margin-top: 8px; font-size: 11px; color: #888; line-height: 1.3;">
+              💡 Timeframe is auto-detected from TradingView.<br>
+              Select your desired interval in TradingView first!
+            </div>
           </div>
           
           <div class="input-container">
@@ -952,6 +921,178 @@ ${Object.keys(this.screenshots).length > 0 ?
     console.log('✅ Toggle complete. New classes:', chatContainer.className);
   }
 
+  // Auto-detect the current timeframe from TradingView's interface using stable selectors
+  detectCurrentTimeframe() {
+    try {
+      console.log(`🔍 Starting timeframe detection using stable selectors (ID + semantic attributes)...`);
+      
+      // First, let's see what's available in the intervals section
+      const intervalsContainer = document.querySelector('#header-toolbar-intervals');
+      if (intervalsContainer) {
+        console.log(`✅ Found intervals container:`, intervalsContainer);
+        
+        // Log all buttons in the container for debugging (using stable attributes only)
+        const allButtons = intervalsContainer.querySelectorAll('button, [role="button"]');
+        console.log(`📊 Found ${allButtons.length} interval buttons:`, 
+          Array.from(allButtons).map(btn => {
+            return {
+              text: btn.textContent?.trim(),
+              ariaLabel: btn.getAttribute('aria-label'),
+              dataTooltip: btn.getAttribute('data-tooltip'),
+              ariaHaspopup: btn.getAttribute('aria-haspopup'),
+              tagName: btn.tagName.toLowerCase(),
+              hasStableAttributes: !!(btn.getAttribute('aria-label') || btn.getAttribute('data-tooltip'))
+            };
+          })
+        );
+      } else {
+        console.warn(`❌ Intervals container #header-toolbar-intervals not found`);
+      }
+      
+      // Method 1: Use stable ID + semantic attributes (most reliable)
+      const intervalButton = document.querySelector('#header-toolbar-intervals button[aria-haspopup="menu"]');
+      if (intervalButton) {
+        console.log(`🔍 Found interval menu button using stable selectors`);
+        
+        // Priority 1: aria-label (stable, semantic)
+        const ariaLabel = intervalButton.getAttribute('aria-label');
+        if (ariaLabel) {
+          console.log(`🎯 Method 1a - Found from aria-label: "${ariaLabel}"`);
+          return this.mapTimeframeText(ariaLabel);
+        }
+        
+        // Priority 2: data-tooltip (stable)
+        const dataTooltip = intervalButton.getAttribute('data-tooltip');
+        if (dataTooltip) {
+          console.log(`🎯 Method 1b - Found from data-tooltip: "${dataTooltip}"`);
+          return this.mapTimeframeText(dataTooltip);
+        }
+        
+        // Priority 3: button text content (fallback)
+        const buttonText = intervalButton.textContent?.trim();
+        if (buttonText) {
+          console.log(`🎯 Method 1c - Found from button text: "${buttonText}"`);
+          return this.mapTimeframeText(buttonText);
+        }
+      }
+      
+      // Method 2: Any button in intervals container using stable attributes
+      const anyIntervalButton = document.querySelector('#header-toolbar-intervals button');
+      if (anyIntervalButton) {
+        console.log(`🔍 Found any button in intervals container`);
+        
+        // Use stable attributes only
+        const ariaLabel = anyIntervalButton.getAttribute('aria-label');
+        const dataTooltip = anyIntervalButton.getAttribute('data-tooltip');
+        const timeframeText = ariaLabel || dataTooltip;
+        
+        if (timeframeText) {
+          console.log(`🎯 Method 2 - Found from stable attributes: "${timeframeText}"`);
+          return this.mapTimeframeText(timeframeText);
+        }
+      }
+      
+      // Method 3: Look for radio buttons with aria-checked (stable semantic attribute)
+      const checkedInterval = document.querySelector('#header-toolbar-intervals [aria-checked="true"]');
+      if (checkedInterval) {
+        const ariaLabel = checkedInterval.getAttribute('aria-label');
+        const dataTooltip = checkedInterval.getAttribute('data-tooltip');
+        const timeframeText = ariaLabel || dataTooltip || checkedInterval.textContent?.trim();
+        console.log(`🎯 Method 3 - Found aria-checked element: "${timeframeText}"`);
+        return this.mapTimeframeText(timeframeText);
+      }
+      
+      // Method 4: Look for pressed buttons (stable semantic attribute)
+      const pressedButton = document.querySelector('#header-toolbar-intervals [aria-pressed="true"]');
+      if (pressedButton) {
+        const ariaLabel = pressedButton.getAttribute('aria-label');
+        const dataTooltip = pressedButton.getAttribute('data-tooltip');
+        const timeframeText = ariaLabel || dataTooltip || pressedButton.textContent?.trim();
+        console.log(`🎯 Method 4 - Found aria-pressed button: "${timeframeText}"`);
+        return this.mapTimeframeText(timeframeText);
+      }
+      
+      console.warn('⚠️ Could not auto-detect timeframe from TradingView using stable selectors, using default 1h');
+      console.log('💡 Tip: Ensure timeframe is selected in TradingView first, then analyze!');
+      console.log('🔧 Detection uses stable selectors: #header-toolbar-intervals + aria-label/data-tooltip');
+      return '1h';
+      
+    } catch (error) {
+      console.error('❌ Error detecting timeframe:', error);
+      return '1h'; // Safe fallback
+    }
+  }
+  
+  // Helper function to map TradingView timeframe text to our internal format
+  mapTimeframeText(timeframeText) {
+    if (!timeframeText) return '1h';
+    
+    // Clean up the text first
+    const cleanText = timeframeText.trim();
+    
+    // Map TradingView display text to our internal format
+    const timeframeMap = {
+      // Direct value mappings (from .value-gwXludjS)
+      '1m': '1m',
+      '3m': '3m', 
+      '5m': '5m',
+      '15m': '15m',
+      '30m': '30m',
+      '45m': '45m',
+      '1h': '1h',
+      '2h': '2h',
+      '3h': '3h',
+      '4h': '4h',
+      '1d': '1d',
+      '3d': '3d',
+      '1w': '1w',
+      '1M': '1M',
+      // Legacy formats
+      '1': '1m',
+      '3': '3m', 
+      '5': '5m',
+      '15': '15m',
+      '30': '30m',
+      '45': '45m',
+      '1H': '1h',
+      '2H': '2h',
+      '3H': '3h',
+      '4H': '4h',
+      '1D': '1d',
+      '3D': '3d',
+      '1W': '1w',
+      // Aria-label/tooltip formats (from data-tooltip="4 hours")
+      '1 minute': '1m',
+      '3 minutes': '3m',
+      '5 minutes': '5m',
+      '15 minutes': '15m',
+      '30 minutes': '30m',
+      '45 minutes': '45m',
+      '1 hour': '1h',
+      '2 hours': '2h',
+      '3 hours': '3h',
+      '4 hours': '4h',
+      '1 day': '1d',
+      '3 days': '3d',
+      '1 week': '1w',
+      '1 month': '1M',
+      // Alternative formats
+      '1min': '1m',
+      '5min': '5m',
+      '15min': '15m',
+      '30min': '30m',
+      '1hour': '1h',
+      '4hour': '4h',
+      '1day': '1d',
+      '1week': '1w',
+      '1month': '1M'
+    };
+    
+    const mappedTimeframe = timeframeMap[cleanText] || cleanText.toLowerCase();
+    console.log(`📝 Mapped timeframe: "${cleanText}" → "${mappedTimeframe}"`);
+    return mappedTimeframe;
+  }
+
   async captureAndAnalyze() {
     if (this.isAnalyzing) return;
 
@@ -968,15 +1109,9 @@ ${Object.keys(this.screenshots).length > 0 ?
       return;
     }
     
-    // Get timeframe from dropdown
-    const timeframeSelect = document.getElementById('timeframe-select');
-    if (!timeframeSelect) {
-      console.warn('Timeframe selector not found');
-      this.isAnalyzing = false;
-      return;
-    }
-    
-    const timeframe = timeframeSelect.value;
+    // Auto-detect timeframe from TradingView instead of manual selection
+    const timeframe = this.detectCurrentTimeframe();
+    console.log(`🎯 Using timeframe: ${timeframe}`);
     const originalText = btn.textContent;
     btn.textContent = `📸 Analyzing ${timeframe}...`;
     btn.disabled = true;
@@ -995,7 +1130,7 @@ ${Object.keys(this.screenshots).length > 0 ?
         throw new Error('Extension context invalidated. Please refresh the page.');
       }
 
-      // Temporarily hide chat window to avoid blocking the chart
+      // Temporarily hide chat wingit d blocking the chart
       const chatContainer = document.getElementById('trading-ai-chat');
       const wasVisible = chatContainer && chatContainer.style.display !== 'none';
       
@@ -1153,7 +1288,11 @@ ${Object.keys(this.screenshots).length > 0 ?
           content: [
             {
               type: 'text',
-              text: `Analyze this TradingView chart for **${timeframe} timeframe**. Provide structured analysis covering:
+              text: `Analyze this TradingView chart for **${timeframe} timeframe**. 
+
+**CRITICAL: Focus ONLY on the main chart area (the large candlestick/price chart). IGNORE any watchlists, side panels, or symbol lists that may show other cryptocurrencies. Analyze only the primary symbol shown in the main chart.**
+
+Provide structured analysis covering:
 
 **1. Price Action** - Current trend, key support/resistance levels
 **2. Support/Resistance** - Specific price levels with reasoning  
@@ -1181,6 +1320,8 @@ Be specific with price levels and actionable. **IMPORTANT: Keep response under 5
           {
             type: 'text',
             text: `**MULTI-TIMEFRAME ANALYSIS**
+
+**CRITICAL: For each screenshot, focus ONLY on the main chart area (the large candlestick/price chart). IGNORE any watchlists, side panels, or symbol lists that may show other cryptocurrencies. Analyze only the primary symbol shown in the main chart area of each image.**
 
 I'm providing you with screenshots from multiple TradingView timeframes: **${timeframes}**
 
@@ -1264,7 +1405,7 @@ For regular chat responses (not initial analysis), be natural and conversational
             content: [
               {
                 type: 'text',
-                text: 'Here is the TradingView chart we are discussing:'
+                text: 'Here is the TradingView chart we are discussing. **Focus ONLY on the main chart area (candlestick/price chart) and ignore any watchlists, side panels, or symbol lists.**'
               },
               {
                 type: 'image_url',
@@ -1343,6 +1484,8 @@ For regular chat responses (not initial analysis), be natural and conversational
     }
     
     console.log(`🚀 Making ${apiConfig.name} API call... (If it fails, check console for detailed error info including billing/credit issues)`);
+          console.log(`📸 Note: Full page screenshot captured - AI instructed to focus only on main chart area`);
+      console.log(`🛡️ Timeframe detection uses stable selectors: #header-toolbar-intervals + aria-label/data-tooltip`);
     
     const response = await fetch(apiConfig.endpoint, {
       method: 'POST',
@@ -1999,23 +2142,29 @@ For regular chat responses (not initial analysis), be natural and conversational
   }
 
   setupPageCleanupHandlers() {
-    // Clear screenshots on page refresh/navigation
+    // Clear screenshots on page refresh/navigation to prevent memory leaks
     window.addEventListener('beforeunload', () => {
-      console.log('🧹 Page unloading - clearing all screenshots');
+      console.log('🧹 Page unloading (refresh/navigate) - clearing all screenshots to prevent memory leaks');
       this.clearAllScreenshots();
     });
 
-    // Clear screenshots on page visibility change (tab switch, etc.)
+    // Clear screenshots on page visibility change (tab switch, minimize)
     document.addEventListener('visibilitychange', () => {
       if (document.hidden) {
-        console.log('🧹 Page hidden - performing light cleanup');
+        console.log('🧹 Page hidden (tab switch/minimize) - performing light cleanup');
         this.lightCleanup();
       }
     });
 
-    // Clear screenshots if page is about to be refreshed
+    // Clear screenshots when tab is closed or page is hidden
     window.addEventListener('pagehide', () => {
-      console.log('🧹 Page hiding - clearing all screenshots');
+      console.log('🧹 Page hiding (tab close/back button) - clearing all screenshots to prevent memory leaks');
+      this.clearAllScreenshots();
+    });
+
+    // Enhanced: Clear screenshots on browser close/extension reload
+    window.addEventListener('unload', () => {
+      console.log('🧹 Page unload event - clearing all screenshots');
       this.clearAllScreenshots();
     });
 
@@ -2024,7 +2173,7 @@ For regular chat responses (not initial analysis), be natural and conversational
     if (originalSendMessage) {
       chrome.runtime.sendMessage = (...args) => {
         if (!chrome.runtime || !chrome.runtime.id) {
-          console.log('🧹 Extension context invalid - clearing all screenshots');
+          console.log('🧹 Extension context invalid - clearing all screenshots to prevent memory leaks');
           this.clearAllScreenshots();
           return;
         }
@@ -2032,35 +2181,42 @@ For regular chat responses (not initial analysis), be natural and conversational
       };
     }
 
-    console.log('✅ Page cleanup handlers registered');
+    console.log('✅ Comprehensive page cleanup handlers registered - screenshots will be cleared on tab close');
   }
 
   clearAllScreenshots() {
     if (!this.screenshots) return;
     
-    console.log('🧹 Clearing all stored screenshots and conversation history');
+    console.log('🧹 Clearing all stored screenshots and conversation history from browser memory');
+    
+    const screenshotCount = Object.keys(this.screenshots).length;
+    if (screenshotCount > 0) {
+      console.log(`📊 Clearing ${screenshotCount} stored screenshots to prevent memory leaks`);
+    }
     
     // Clear all screenshots from memory
     this.screenshots = {};
     this.activeTimeframe = null;
     
-    // Update UI
+    // Update UI if extension is still active
     if (this.isInitialized) {
       this.updateChatStatus();
       this.updateGallery();
       
-      // Add a temporary message to inform user
-      this.addMessage('ai', `🧹 **Screenshots Cleared**
+      // Add a temporary message to inform user (only if not closing tab)
+      if (!document.hidden) {
+        this.addMessage('ai', `🧹 **Screenshots Cleared**
 
-All stored screenshots and conversation history have been cleared from memory to protect your privacy and free up browser resources.
+All stored screenshots and conversation history have been cleared from browser memory.
 
-📸 Ready for new analysis - select a timeframe and take a screenshot to continue!`);
+📸 Ready for new analysis - screenshots now persist until manually cleared or tab closed (no more 30-minute auto-expiration).`);
+      }
     }
     
-    // Force garbage collection
+    // Force garbage collection to free up memory
     this.forceGarbageCollection();
     
-    console.log('✅ All screenshots cleared from memory');
+    console.log('✅ All screenshots cleared from browser memory');
   }
 
   // Balanced: Optimize image size for good speed while maintaining quality
@@ -2250,12 +2406,12 @@ Hey! I'm now running on ${providerName} with the ${this.currentModel} model. Don
       const timeframe = this.activeTimeframe;
       delete this.screenshots[timeframe];
       this.activeTimeframe = null;
-      this.addMessage('ai', `🗑️ ${timeframe} screenshot cleared. Take a new screenshot to continue analysis.`);
+      this.addMessage('ai', `🗑️ ${timeframe} screenshot cleared manually. Screenshots now persist until manually cleared or tab closed (no auto-expiration).`);
     } else {
       // Clear all screenshots
       this.screenshots = {};
       this.activeTimeframe = null;
-      this.addMessage('ai', '🗑️ All screenshots cleared. Take a new screenshot to start fresh analysis.');
+      this.addMessage('ai', '🗑️ All screenshots cleared manually. Screenshots now persist until manually cleared or tab closed (no auto-expiration).');
     }
     
     // Update gallery UI after clearing screenshots

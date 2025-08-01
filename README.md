@@ -48,15 +48,15 @@
 
 ### 1. Get AI Provider API Keys
 
-#### OpenAI (Recommended)
-1. Visit [OpenAI Platform](https://platform.openai.com/api-keys)
-2. Create account and generate API key
-3. Ensure GPT-4 Vision access (may require paid plan)
-
-#### Grok (Optional)
+#### Grok (Recommended)
 1. Visit [xAI Console](https://console.x.ai/)
 2. Create account and generate API key
 3. Grok-4 with vision support included
+
+#### OpenAI (Optional)
+1. Visit [OpenAI Platform](https://platform.openai.com/api-keys)
+2. Create account and generate API key
+3. Ensure GPT-4 Vision access (may require paid plan)
 
 ### 2. Install Extension
 1. Open Chrome → `chrome://extensions/`

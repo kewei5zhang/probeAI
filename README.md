@@ -1,127 +1,246 @@
 # Trading AI Assistant - Chrome Extension
 
-AI-powered trading analysis that works directly with TradingView charts. Take screenshots of your trading charts and get instant technical analysis using OpenAI's GPT-4 Vision API.
+🚀 **Advanced AI-powered trading analysis** that works seamlessly with TradingView charts. Auto-detects symbols and timeframes, supports multiple AI providers, and provides comprehensive technical analysis with persistent chat history.
 
-## 🎯 Features
+## ✨ Key Features
 
-- **Screenshot Analysis**: Capture TradingView charts and get AI-powered technical analysis
-- **Real-time Chat Interface**: Integrated sidebar chat on TradingView pages
-- **Technical Indicators**: AI recognizes MACD, RSI, moving averages, and other indicators
-- **Pattern Recognition**: Identifies chart patterns, support/resistance levels
-- **Trading Insights**: Get entry/exit suggestions and risk management advice
+### 🧠 **Dual AI Provider Support**
+- **OpenAI GPT-4o** - Industry-leading vision analysis
+- **Grok (xAI)** - Latest AI technology with advanced reasoning
+- **Smart switching** between providers with API key management
+- **Automatic vision model selection** for chart analysis
+
+### 📸 **Intelligent Screenshot Analysis**
+- **Auto-detects symbol** (ETHUSD, BTCUSD, etc.) from chart header
+- **Auto-detects timeframe** (1h, 4h, 1d, etc.) from TradingView interface
+- **Smart symbol focus** - Ignores watchlists and side panels
+- **High-quality capture** with optimized compression
+- **No manual configuration** - just click and analyze!
+
+### 📊 **Multi-Timeframe Analysis**
+- **Compare multiple timeframes** simultaneously (1h vs 4h vs 1d)
+- **Cross-timeframe insights** - trend alignment and conflicts
+- **Screenshot gallery** with visual timeframe management
+- **Persistent storage** - screenshots saved until manually cleared
+
+### 💬 **Enhanced Chat Experience**
+- **Persistent chat history** - survives page reloads
+- **Custom text selection** with branded highlight colors
+- **Copy functionality** - select any text and use Ctrl+C
+- **Smart message formatting** with structured AI responses
+- **Progressive loading** for large responses (prevents DOM crashes)
+
+### 🎨 **Advanced UI/UX**
+- **Draggable interface** - position anywhere on screen
+- **Resizable window** - adjust to your workflow
+- **Collapsed mode** - minimize when not in use
+- **Clean styling** with modern design and smooth animations
+- **Mobile responsive** design
+
+### 🛡️ **Robust & Reliable**
+- **Memory management** - smart cleanup prevents browser slowdown
+- **Error handling** - detailed API error messages with billing guidance
+- **Stable selectors** - won't break with TradingView updates
+- **Extension context recovery** - handles Chrome extension reloads
+- **Tab cleanup** - automatically clears data when tab closes
 
 ## 🚀 Quick Setup
 
-### 1. Get OpenAI API Key
+### 1. Get AI Provider API Keys
+
+#### OpenAI (Recommended)
 1. Visit [OpenAI Platform](https://platform.openai.com/api-keys)
-2. Create an account and generate an API key
-3. Make sure you have access to GPT-4 Vision (may require paid plan)
+2. Create account and generate API key
+3. Ensure GPT-4 Vision access (may require paid plan)
 
-### 2. Install the Extension
-1. Open Chrome and go to `chrome://extensions/`
-2. Enable "Developer mode" (toggle in top right)
-3. Click "Load unpacked" and select this `probe` folder
-4. The extension should now appear in your Chrome toolbar
+#### Grok (Optional)
+1. Visit [xAI Console](https://console.x.ai/)
+2. Create account and generate API key
+3. Grok-4 with vision support included
 
-### 3. Configure API Key
-1. Click the Trading AI extension icon in Chrome toolbar
-2. Enter your OpenAI API key
-3. Click "Save API Key" and then "Test Connection"
-4. You should see "✅ API key valid and GPT-4 Vision available!"
+### 2. Install Extension
+1. Open Chrome → `chrome://extensions/`
+2. Enable "Developer mode" (toggle top right)
+3. Click "Load unpacked" → select `probe` folder
+4. Extension appears in Chrome toolbar
 
-### 4. Start Trading Analysis
-1. Go to [TradingView](https://tradingview.com)
-2. Open any chart with technical indicators
-3. Look for the "🤖 Trading AI" widget on the right side
-4. Click "📸 Analyze Chart" to get instant AI analysis
+### 3. Configure AI Providers
+1. Go to any TradingView page
+2. Click ⚙️ settings in the Trading AI chat window
+3. **Enable providers** and enter API keys
+4. **Test connections** to verify setup
+5. **Select active provider** (OpenAI or Grok)
+
+### 4. Start Analyzing
+1. Open any chart on TradingView
+2. Look for "🤖 Trading AI" widget (right side)
+3. Click "📸 Analyze Current Chart"
+4. Get instant AI analysis with auto-detected symbol/timeframe!
 
 ## 📱 How to Use
 
-### Taking a Screenshot Analysis
-1. **Set up your chart**: Add indicators like MACD, RSI, moving averages
-2. **Adjust timeframe**: Choose the timeframe you want to analyze
-3. **Position the chat**: Drag the chat window by its header to avoid blocking important chart elements
-4. **Resize if needed**: Drag the bottom edge (⋯) to make the window taller or shorter
-5. **Click Analyze**: Hit the "📸 Analyze Chart" button
-6. **Get insights**: AI will analyze price action, indicators, and patterns with clean formatting
-7. **Follow up**: Ask specific questions about the analysis
+### Basic Analysis
+1. **Open TradingView** - Any trading pair and timeframe
+2. **Auto-detection** - Extension reads symbol (ETHUSD) and timeframe (4h)
+3. **Click analyze** - "📸 Analyze Current Chart" button
+4. **Get insights** - Comprehensive analysis with price levels and signals
+5. **Ask follow-ups** - Chat naturally about the analysis
 
-### What the AI Can Analyze
-- **Price Action**: Trends, support/resistance levels, breakouts
-- **Technical Indicators**: MACD signals, RSI levels, moving average crossovers
-- **Chart Patterns**: Triangles, head & shoulders, flags, wedges
-- **Volume Analysis**: Volume confirmations and divergences
-- **Risk Management**: Stop-loss and take-profit suggestions
+### Multi-Timeframe Analysis
+1. **Take multiple screenshots** on different timeframes (1h, 4h, 1d)
+2. **View screenshot gallery** - See all stored timeframes
+3. **Click "Compare All Timeframes"** - Get cross-timeframe analysis
+4. **Unified insights** - Trend alignment, support/resistance across timeframes
+
+### Chat Features
+- **Persistent history** - Conversations survive page reloads
+- **Text selection** - Select any AI response text (custom blue highlights)
+- **Copy with Ctrl+C** - Standard browser copy behavior
+- **Ask questions** - "What's the next resistance level?" "Should I buy here?"
+
+## 🎯 What the AI Analyzes
+
+### Technical Analysis
+- **Price Action** - Trends, breakouts, reversals, momentum
+- **Support/Resistance** - Key levels with specific prices
+- **Chart Patterns** - Triangles, flags, head & shoulders, wedges
+- **Technical Indicators** - MACD, RSI, moving averages, volume
+- **Risk Management** - Stop-loss and take-profit recommendations
+
+### Multi-Timeframe Insights
+- **Trend Alignment** - Are all timeframes bullish/bearish?
+- **Conflicting Signals** - Short-term vs long-term divergences
+- **Entry Timing** - Best timeframe for trade execution
+- **Context Analysis** - How current move fits bigger picture
+
+### Smart Symbol Detection
+- **Accurate identification** - Reads ETHUSD from chart header
+- **Ignores distractions** - Won't analyze CHAINUSD from watchlist
+- **Focused analysis** - Only the main chart you're viewing
+- **Reliable detection** - Uses stable TradingView DOM elements
+
+## ⚡ Advanced Features
+
+### Screenshot Management
+- **Persistent storage** - No 30-minute expiration (old limitation removed)
+- **Smart replacement** - New 4h screenshot replaces old 4h
+- **Memory limits** - Keeps 4 timeframes max, removes oldest when full
+- **Gallery view** - Visual management with timestamps
+- **Manual clearing** - Clear individual timeframes or all at once
+
+### AI Provider Management
+- **Dual support** - Switch between OpenAI and Grok instantly
+- **API testing** - Built-in connection testing with detailed error messages
+- **Billing guidance** - Clear instructions for 403 errors (no credits)
+- **Model selection** - Only vision-capable models shown (GPT-4o, Grok-4)
+- **Token optimization** - Smart limits prevent DOM overload
+
+### Memory & Performance
+- **Tab cleanup** - Screenshots cleared when tab closes (prevents memory leaks)
+- **Progressive loading** - Large AI responses load in chunks
+- **Image optimization** - Balanced quality/speed for API calls
+- **Extension recovery** - Handles Chrome extension reloads gracefully
 
 ## 🔧 Troubleshooting
 
-### Extension Not Loading
-- Make sure you're on a TradingView page (`*.tradingview.com`)
-- Refresh the page after installing the extension
-- Check Chrome DevTools console for error messages
+### Common Issues
 
-### API Errors
-- Verify your OpenAI API key is correct
-- Ensure you have GPT-4 Vision access (may require paid plan)
-- Check your OpenAI account has sufficient credits
+**Extension not visible on TradingView**
+- Refresh the TradingView page
+- Check you're on `*.tradingview.com` domain
+- Look for 🤖 icon in top-right area of page
 
-### Screenshot Issues
-- Grant permission when Chrome asks for tab access
-- Make sure the chart is visible on screen
-- Try refreshing the TradingView page
+**Wrong symbol detected (e.g., CHAINUSD instead of ETHUSD)**
+- This was fixed! Extension now reads from chart header only
+- Ignores watchlists and side panels completely
+- Should detect correct symbol from main chart
 
-## ✨ Features
+**API errors (403, 401, etc.)**
+- Check console for detailed error messages
+- 403 usually means no credits/billing issue
+- Links to billing dashboards provided in error messages
+- Test API keys using built-in testing feature
 
-- **📸 Screenshot Analysis**: Automatic chart capture and AI analysis
-- **🤖 Smart Formatting**: Clean, readable AI responses with proper styling  
-- **🖱️ Draggable Interface**: Move the chat window anywhere on screen
-- **📏 Resizable Window**: Adjust height to fit your workflow
-- **⚙️ Easy Setup**: One-click API key configuration
-- **🔄 Auto-Recovery**: Smart error handling and context management
+**Large responses causing crashes**
+- Extension now handles large responses with chunked loading
+- Progressive rendering prevents DOM overload
+- Responses limited to prevent issues
 
-## 💡 Tips for Better Analysis
+### Getting Help
+1. **Check browser console** - F12 → Console tab for detailed logs
+2. **Test API connections** - Use built-in testing in settings
+3. **Verify permissions** - Extension needs tab access for screenshots
+4. **Try different AI provider** - Switch between OpenAI and Grok
 
-1. **Use Multiple Timeframes**: Analyze both short-term and long-term charts
-2. **Include Key Indicators**: Add MACD, RSI, volume for comprehensive analysis
-3. **Mark Important Levels**: Draw support/resistance lines before analysis
-4. **Clear Charts**: Avoid too many indicators that might confuse the AI
-5. **Ask Specific Questions**: Follow up with targeted questions about patterns
+## 💡 Pro Tips
 
-## 🔮 Future Enhancements (Phase 2)
+### Best Practices
+1. **Use multiple timeframes** - 1h for entries, 4h for trend, 1d for context
+2. **Keep charts clean** - Too many indicators can confuse analysis
+3. **Draw key levels** - Mark your own support/resistance before analysis
+4. **Ask specific questions** - "What's next resistance?" vs "How's this chart?"
+5. **Compare timeframes** - Use multi-timeframe analysis for confirmation
 
-- **Historical Context**: Access to previous candle data
-- **Multiple Timeframe Analysis**: Compare different timeframes automatically
-- **Trade Alerts**: Set up AI-powered alerts for specific conditions
-- **Backtesting**: Test AI suggestions against historical data
-- **Integration**: Direct connection to TradingView's data API
+### Advanced Usage
+- **Drag interface** anywhere on screen for optimal positioning
+- **Resize window** to fit your trading setup
+- **Use both AI providers** - Different perspectives on same chart
+- **Save important analysis** - Screenshots persist until manually cleared
+- **Leverage chat history** - Reference previous conversations
 
-## 📄 File Structure
+## 🔮 Recent Updates
 
+### v3.0 - Major Feature Release
+- ✅ **Auto-detection** of symbols and timeframes
+- ✅ **Dual AI provider** support (OpenAI + Grok)
+- ✅ **Multi-timeframe analysis** with visual gallery
+- ✅ **Persistent chat history** survives page reloads
+- ✅ **Enhanced text selection** with custom highlighting
+- ✅ **Smart symbol focus** ignores watchlists/side panels
+- ✅ **Memory management** and tab cleanup
+- ✅ **Progressive loading** for large responses
+- ✅ **Stable DOM selectors** won't break with TradingView updates
+
+### Previous Versions
+- v2.0 - Basic screenshot analysis
+- v1.0 - Initial proof of concept
+
+## 📄 Technical Details
+
+### File Structure
 ```
 probe/
 ├── manifest.json          # Chrome extension configuration
-├── content.js             # Main chat interface and screenshot logic
+├── content.js             # Main logic, UI, AI analysis (3000+ lines)
 ├── background.js          # Screenshot capture service worker
-├── popup.html             # Extension settings popup
-├── popup.js              # Settings popup functionality
-├── styles.css            # Chat interface styling
-├── icon16.png            # Extension icon (16x16)
-├── icon48.png            # Extension icon (48x48)
-├── icon128.png           # Extension icon (128x128)
-└── README.md             # This file
+├── styles.css            # Advanced UI styling with animations
+├── icon16.png            # Extension icons
+├── icon48.png            
+├── icon128.png           
+└── README.md             # This documentation
 ```
+
+### Architecture
+- **Content Script** - Runs on TradingView pages, creates UI
+- **Background Script** - Handles screenshot capture
+- **Chrome Storage** - Persistent settings and chat history
+- **AI APIs** - OpenAI and xAI integration
+- **DOM Integration** - Stable selectors for auto-detection
 
 ## 🔒 Privacy & Security
 
-- API keys are stored locally in Chrome's sync storage
-- Screenshots are sent to OpenAI for analysis only
-- No data is stored on external servers
-- All communications use HTTPS
+- **Local storage only** - API keys stored in Chrome sync storage
+- **No external servers** - Direct API communication only
+- **HTTPS encryption** - All API calls secured
+- **Memory cleanup** - Data cleared on tab close
+- **No tracking** - Extension doesn't collect usage data
 
-## 📝 License
+## 📝 License & Disclaimer
 
-This is a proof-of-concept project. Use at your own risk for educational purposes.
+Educational proof-of-concept project. Use at your own risk.
+
+**⚠️ Trading Disclaimer**: AI analysis is for educational purposes only. Always do your own research and consider consulting financial advisors before making trading decisions.
 
 ---
 
-**Note**: This extension requires an OpenAI API key with GPT-4 Vision access. Trading decisions should not be based solely on AI analysis. Always do your own research and consider consulting with financial advisors.
+**Powered by GPT-4o Vision & Grok-4** | **Built for TradingView** | **Advanced Chrome Extension**

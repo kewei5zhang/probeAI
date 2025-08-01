@@ -84,9 +84,11 @@ class TradingAIAssistant {
     
     // Show/hide gallery based on whether we have screenshots
     if (timeframes.length === 0) {
+      console.log(`📭 Gallery empty: hiding screenshot gallery`);
       gallery.style.display = 'none';
       return;
     } else {
+      console.log(`📸 Gallery update: showing ${timeframes.length} screenshots`);
       gallery.style.display = 'block';
       // Auto-expand when adding first screenshot OR when compare button should be visible
       if (timeframes.length >= 1) {
@@ -307,16 +309,32 @@ ${Object.keys(this.screenshots).length > 0 ?
     // Auto-cleanup: Remove screenshots older than 30 minutes
     const thirtyMinutes = 30 * 60 * 1000;
     const now = Date.now();
+    let removedAny = false;
     
     for (const tf of Object.keys(this.screenshots)) {
       if (now - this.screenshots[tf].timestamp > thirtyMinutes) {
         console.log(`⏰ Auto-cleanup: Removing expired ${tf} screenshot (>30 min old)`);
-        this.addMessage('ai', `⏰ ${tf} timeframe expired (30+ minutes old) and was cleaned up to save memory.`);
+        this.addMessage('ai', `⏰ **${tf} timeframe expired** (30+ minutes old) and was removed from storage to save memory. Take a new screenshot if you want to analyze this timeframe again.`);
         delete this.screenshots[tf];
+        removedAny = true;
         
         if (this.activeTimeframe === tf) {
           this.activeTimeframe = null;
         }
+      }
+    }
+    
+    // Update gallery UI if any screenshots were removed
+    if (removedAny) {
+      console.log(`🧹 Updating gallery after removing expired screenshots`);
+      this.updateGallery();
+      this.updateChatStatus();
+      
+      // Log current state for debugging
+      const remainingCount = Object.keys(this.screenshots).length;
+      console.log(`📊 Gallery updated: ${remainingCount} screenshots remaining`);
+      if (remainingCount === 0) {
+        console.log(`🔄 Gallery is now empty and should be hidden`);
       }
     }
   }
@@ -1324,6 +1342,8 @@ For regular chat responses (not initial analysis), be natural and conversational
       });
     }
     
+    console.log(`🚀 Making ${apiConfig.name} API call... (If it fails, check console for detailed error info including billing/credit issues)`);
+    
     const response = await fetch(apiConfig.endpoint, {
       method: 'POST',
       headers: requestHeaders,
@@ -1355,7 +1375,16 @@ For regular chat responses (not initial analysis), be natural and conversational
       } else if (response.status === 401) {
         errorMessage = `Invalid API key. Please check your ${providerName} API key in the extension settings.`;
       } else if (response.status === 403) {
-        errorMessage = `Access denied. Make sure your API key has access to ${providerName} Vision models.`;
+        errorMessage = `Access denied - likely no credits or billing issue. Check your ${providerName} billing dashboard.`;
+        console.error(`💳 ${providerName} 403: Access denied during analysis - This usually means:`);
+        console.error(`   • No credits/billing set up in your account`);
+        console.error(`   • Exceeded spending limits`);
+        console.error(`   • Account suspended or restricted`);
+        if (providerName === 'OpenAI') {
+          console.error(`   • Visit: https://platform.openai.com/account/billing`);
+        } else if (providerName === 'Grok') {
+          console.error(`   • Visit: https://console.x.ai/ or contact xAI support`);
+        }
       } else if (response.status === 404) {
         errorMessage = `${providerName} model not found. Model "${apiConfig.model}" may not be available. Try a different vision-capable model.`;
       } else if (response.status === 400) {
@@ -2229,8 +2258,9 @@ Hey! I'm now running on ${providerName} with the ${this.currentModel} model. Don
       this.addMessage('ai', '🗑️ All screenshots cleared. Take a new screenshot to start fresh analysis.');
     }
     
-    this.updateChatStatus();
+    // Update gallery UI after clearing screenshots
     this.updateGallery();
+    this.updateChatStatus();
     
     // Force garbage collection if available
     this.forceGarbageCollection();
@@ -2617,16 +2647,28 @@ Hey! I'm now running on ${providerName} with the ${this.currentModel} model. Don
 
     testBtn.textContent = 'Testing...';
     testBtn.disabled = true;
+    
+    console.log(`🧪 Testing ${provider.toUpperCase()} API connection... (Check console for detailed error info if it fails)`);
+    console.log(`🔍 API Key: ${apiKey.substring(0, 8)}...${apiKey.substring(apiKey.length - 4)}`);
 
     try {
       if (provider === 'openai') {
         await this.testOpenAIConnection(apiKey);
+        console.log(`✅ OpenAI API Test Successful: GPT-4 Vision available`);
         this.showProviderStatus(provider, '✅ API key valid and GPT-4 Vision available!', 'success');
       } else if (provider === 'grok') {
         await this.testGrokConnection(apiKey);
+        console.log(`✅ Grok API Test Successful: Grok Vision available`);
         this.showProviderStatus(provider, '✅ API key valid and Grok Vision available!', 'success');
       }
     } catch (error) {
+      console.error(`🔑 ${provider.toUpperCase()} API Test Failed:`, error);
+      console.error(`📋 Error Details:`, {
+        message: error.message,
+        status: error.status || 'unknown',
+        provider: provider,
+        timestamp: new Date().toISOString()
+      });
       this.showProviderStatus(provider, `❌ ${error.message}`, 'error');
     } finally {
       testBtn.textContent = 'Test';
@@ -2643,13 +2685,42 @@ Hey! I'm now running on ${providerName} with the ${this.currentModel} model. Don
     });
 
     if (!response.ok) {
-      if (response.status === 401) {
-        throw new Error('Invalid API key');
-      } else if (response.status === 429) {
-        throw new Error('Rate limited - API key valid but quota exceeded');
-      } else {
-        throw new Error(`API error: ${response.status}`);
+      let errorMessage;
+      let responseBody = '';
+      
+      // Try to get the response body for more details
+      try {
+        responseBody = await response.text();
+        console.error(`🔥 OpenAI API Error Response Body:`, responseBody);
+      } catch (e) {
+        console.error(`🔥 Could not read OpenAI error response body`);
       }
+
+      if (response.status === 401) {
+        errorMessage = 'Invalid API key - check your OpenAI API key';
+        console.error(`🔑 OpenAI 401: Invalid API key provided`);
+      } else if (response.status === 403) {
+        errorMessage = 'Access denied - likely no credits or billing issue. Check your OpenAI billing dashboard';
+        console.error(`💳 OpenAI 403: Access denied - This usually means:`);
+        console.error(`   • No credits/billing set up in OpenAI account`);
+        console.error(`   • Exceeded spending limits`);
+        console.error(`   • Account suspended or restricted`);
+        console.error(`   • Visit: https://platform.openai.com/account/billing`);
+      } else if (response.status === 429) {
+        errorMessage = 'Rate limited - API key valid but quota exceeded';
+        console.error(`⏱️ OpenAI 429: Rate limit exceeded - slow down requests`);
+      } else if (response.status === 404) {
+        errorMessage = 'API endpoint not found - service may be down';
+        console.error(`🔍 OpenAI 404: API endpoint not found`);
+      } else {
+        errorMessage = `API error: ${response.status} - check console for details`;
+        console.error(`❌ OpenAI ${response.status}: Unknown error`);
+        console.error(`📄 Response body:`, responseBody.slice(0, 500));
+      }
+      
+      const error = new Error(errorMessage);
+      error.status = response.status;
+      throw error;
     }
 
     const data = await response.json();
@@ -2671,13 +2742,46 @@ Hey! I'm now running on ${providerName} with the ${this.currentModel} model. Don
     });
 
     if (!response.ok) {
-      if (response.status === 401) {
-        throw new Error('Invalid API key');
-      } else if (response.status === 429) {
-        throw new Error('Rate limited - API key valid but quota exceeded');
-      } else {
-        throw new Error(`API error: ${response.status}`);
+      let errorMessage;
+      let responseBody = '';
+      
+      // Try to get the response body for more details
+      try {
+        responseBody = await response.text();
+        console.error(`🔥 Grok API Error Response Body:`, responseBody);
+      } catch (e) {
+        console.error(`🔥 Could not read Grok error response body`);
       }
+
+      if (response.status === 401) {
+        errorMessage = 'Invalid API key - check your xAI/Grok API key';
+        console.error(`🔑 Grok 401: Invalid API key provided`);
+      } else if (response.status === 403) {
+        errorMessage = 'Access denied - likely no credits or billing issue. Check your xAI billing dashboard';
+        console.error(`💳 Grok 403: Access denied - This usually means:`);
+        console.error(`   • No credits/billing set up in xAI account`);
+        console.error(`   • Exceeded spending limits`);
+        console.error(`   • Account suspended or restricted`);
+        console.error(`   • API access not enabled for your account`);
+        console.error(`   • Visit: https://console.x.ai/ or contact xAI support`);
+      } else if (response.status === 429) {
+        errorMessage = 'Rate limited - API key valid but quota exceeded';
+        console.error(`⏱️ Grok 429: Rate limit exceeded - slow down requests`);
+      } else if (response.status === 404) {
+        errorMessage = 'API endpoint not found - xAI service may be down';
+        console.error(`🔍 Grok 404: API endpoint not found`);
+      } else if (response.status === 502 || response.status === 503) {
+        errorMessage = 'xAI service temporarily unavailable - try again later';
+        console.error(`🚧 Grok ${response.status}: Service temporarily unavailable`);
+      } else {
+        errorMessage = `API error: ${response.status} - check console for details`;
+        console.error(`❌ Grok ${response.status}: Unknown error`);
+        console.error(`📄 Response body:`, responseBody.slice(0, 500));
+      }
+      
+      const error = new Error(errorMessage);
+      error.status = response.status;
+      throw error;
     }
 
     const data = await response.json();

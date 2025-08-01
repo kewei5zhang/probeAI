@@ -42,17 +42,45 @@ class TradingAIAssistant {
     this.init();
   }
 
-  init() {
-    console.log('🚀 TradingAIAssistant.init() called');
-    window.tradingAIDebug.initCalled = true;
-    this.createChatInterface();
-    this.checkExtensionHealth();
-    this.setupPageCleanupHandlers();
-    // NOTE: setupEventListeners, loadProviderSettings, and initialization completion 
-    // are handled in createChatInterface() after DOM is ready
+  async init() {
+    console.log('🚀 TradingAI: Initializing assistant...');
+    this.isInitialized = false;
     
-    // Expose debug function globally for testing
-    window.debugScreenshots = () => this.debugScreenshotState();
+    try {
+      this.createChatInterface();
+      console.log('✅ Chat interface created');
+      
+      this.setupEventListeners();
+      console.log('✅ Event listeners set up');
+      
+      this.setupSettingsModal();
+      console.log('✅ Settings modal set up');
+      
+      await this.loadProviderSettings();
+      console.log('✅ Provider settings loaded');
+      
+      // Load chat history from storage
+      await this.loadChatHistory();
+      console.log('✅ Chat history loaded');
+      
+      this.updateProviderDisplay();
+      
+      // Set up memory monitoring
+      this.monitorMemoryUsage();
+      
+      // Set up page cleanup handlers
+      this.setupPageCleanupHandlers();
+      
+      this.setupDragListeners();
+      this.setupResizeListeners();
+      
+      this.isInitialized = true;
+      console.log('✅ TradingAI Assistant fully initialized');
+      
+    } catch (error) {
+      console.error('❌ TradingAI initialization failed:', error);
+      this.isInitialized = false;
+    }
   }
 
   // Gallery Management Functions
@@ -1109,11 +1137,14 @@ ${Object.keys(this.screenshots).length > 0 ?
       return;
     }
     
-    // Auto-detect timeframe from TradingView instead of manual selection
+    // Auto-detect timeframe and symbol from TradingView
     const timeframe = this.detectCurrentTimeframe();
+    const symbol = this.detectCurrentSymbol();
+    
     console.log(`🎯 Using timeframe: ${timeframe}`);
+    console.log(`🎯 Using symbol: ${symbol || 'Not detected'}`);
     const originalText = btn.textContent;
-    btn.textContent = `📸 Analyzing ${timeframe}...`;
+    btn.textContent = `📸 Analyzing ${symbol || 'chart'} ${timeframe}...`;
     btn.disabled = true;
 
     let response = null; // Declare response outside try block
@@ -1157,7 +1188,7 @@ ${Object.keys(this.screenshots).length > 0 ?
       console.log('🤖 Background response:', response);
 
       if (response && response.success) {
-        console.log(`📸 Processing new screenshot for ${timeframe}. Current count: ${Object.keys(this.screenshots).length}`);
+        console.log(`📸 Processing new screenshot for ${symbol || 'chart'} ${timeframe}. Current count: ${Object.keys(this.screenshots).length}`);
         
         // Balanced: Optimize image size for faster API calls while maintaining quality
         const optimizedImage = await this.optimizeImageSize(response.dataUrl);
@@ -1165,22 +1196,23 @@ ${Object.keys(this.screenshots).length > 0 ?
         // Check if we need to free up memory before storing new screenshot
         this.manageTimeframeMemory(timeframe);
         
-        // Send to AI for analysis with timeframe context
-        const analysis = await this.analyzeWithAI(optimizedImage, timeframe, true);
+        // Send to AI for analysis with symbol and timeframe context
+        const analysis = await this.analyzeWithAI(optimizedImage, timeframe, true, null, symbol);
         
         this.addMessage('ai', analysis);
         
-        // Store screenshot with timeframe
+        // Store screenshot with timeframe as key (for multi-timeframe comparison)
         this.screenshots[timeframe] = {
           image: optimizedImage,  // Use optimized image
           timestamp: Date.now(),
+          symbol: symbol, // Store detected symbol
           conversation: [
-            { role: 'user', content: `Analyze ${timeframe} timeframe chart`, provider: this.currentProvider },
+            { role: 'user', content: `Analyze ${symbol || 'chart'} ${timeframe} timeframe`, provider: this.currentProvider },
             { role: 'assistant', content: analysis, provider: this.currentProvider }
           ]
         };
         
-        console.log(`✅ Screenshot stored for ${timeframe}. New count: ${Object.keys(this.screenshots).length}`);
+        console.log(`✅ Screenshot stored for ${timeframe} (${symbol || 'unknown symbol'}). New count: ${Object.keys(this.screenshots).length}`);
         
         // Verify final state
         const finalTimeframes = Object.keys(this.screenshots);
@@ -1262,7 +1294,7 @@ ${Object.keys(this.screenshots).length > 0 ?
     }
   }
 
-  async analyzeWithAI(imageData, timeframe = '1h', isInitialAnalysis = false, userMessage = null) {
+  async analyzeWithAI(imageData, timeframe = '1h', isInitialAnalysis = false, userMessage = null, symbol = null) {
     const startTime = performance.now();
     console.log(`⏱️ Starting AI analysis for ${timeframe}...`);
     
@@ -1288,9 +1320,20 @@ ${Object.keys(this.screenshots).length > 0 ?
           content: [
             {
               type: 'text',
-              text: `Analyze this TradingView chart for **${timeframe} timeframe**. 
+              text: `Analyze this TradingView chart for **${symbol || 'the main symbol'} on ${timeframe} timeframe**. 
 
-**CRITICAL: Focus ONLY on the main chart area (the large candlestick/price chart). IGNORE any watchlists, side panels, or symbol lists that may show other cryptocurrencies. Analyze only the primary symbol shown in the main chart.**
+**🚨 CRITICAL SYMBOL IDENTIFICATION 🚨**
+${symbol ? 
+  `**YOU ARE ANALYZING: ${symbol} (detected from chart header)**` : 
+  '**THE MAIN SYMBOL IS SHOWN IN THE CHART HEADER AT THE TOP CENTER OF THE SCREEN**'
+}
+**IGNORE ALL WATCHLISTS, SIDE PANELS, AND SYMBOL LISTS - THEY CONTAIN DIFFERENT SYMBOLS**
+**ANALYZE ONLY THE LARGE CENTRAL CANDLESTICK CHART AND ITS HEADER SYMBOL**
+**DO NOT ANALYZE ANY SYMBOLS FROM RIGHT-SIDE PANELS OR WATCHLISTS**
+
+**FOCUS EXCLUSIVELY ON: ${symbol || 'the symbol shown in the main chart header'}**
+**TIMEFRAME: ${timeframe}**
+**IGNORE: All other symbols in watchlists, side panels, or additional charts**
 
 Provide structured analysis covering:
 
@@ -1321,9 +1364,17 @@ Be specific with price levels and actionable. **IMPORTANT: Keep response under 5
             type: 'text',
             text: `**MULTI-TIMEFRAME ANALYSIS**
 
-**CRITICAL: For each screenshot, focus ONLY on the main chart area (the large candlestick/price chart). IGNORE any watchlists, side panels, or symbol lists that may show other cryptocurrencies. Analyze only the primary symbol shown in the main chart area of each image.**
+**🚨 CRITICAL SYMBOL IDENTIFICATION FOR ALL SCREENSHOTS 🚨**
+${symbol ? 
+  `**YOU ARE ANALYZING: ${symbol} (detected from chart headers)**
+**ALL SCREENSHOTS SHOULD BE OF THE SAME SYMBOL: ${symbol}**` : 
+  '**FOR EACH SCREENSHOT: THE MAIN SYMBOL IS IN THE CHART HEADER AT TOP CENTER**'
+}
+**IGNORE ALL WATCHLISTS, SIDE PANELS, AND SYMBOL LISTS IN EVERY SCREENSHOT**
+**ANALYZE ONLY THE LARGE CENTRAL CANDLESTICK CHARTS AND THEIR HEADER SYMBOLS**
+**DO NOT ANALYZE ANY SYMBOLS FROM RIGHT-SIDE PANELS OR WATCHLISTS IN ANY SCREENSHOT**
 
-I'm providing you with screenshots from multiple TradingView timeframes: **${timeframes}**
+I'm providing you with screenshots from multiple TradingView timeframes for **${symbol || 'the main symbol'}**: **${timeframes}**
 
 Please analyze ALL the provided timeframes comprehensively and focus on:
 
@@ -1404,8 +1455,8 @@ For regular chat responses (not initial analysis), be natural and conversational
             role: 'user',
             content: [
               {
-                type: 'text',
-                text: 'Here is the TradingView chart we are discussing. **Focus ONLY on the main chart area (candlestick/price chart) and ignore any watchlists, side panels, or symbol lists.**'
+                                  type: 'text',
+                  text: `🚨 **SYMBOL IDENTIFICATION REMINDER** 🚨 Here is the TradingView chart we are discussing${symbol ? ` for **${symbol}**` : ''}. ${symbol ? `**YOU ARE ANALYZING: ${symbol}**` : '**The main symbol is in the chart header at top center.**'} Focus ONLY on the large central candlestick chart. IGNORE ALL watchlists, side panels, and symbol lists.`
               },
               {
                 type: 'image_url',
@@ -1484,8 +1535,10 @@ For regular chat responses (not initial analysis), be natural and conversational
     }
     
     console.log(`🚀 Making ${apiConfig.name} API call... (If it fails, check console for detailed error info including billing/credit issues)`);
-          console.log(`📸 Note: Full page screenshot captured - AI instructed to focus only on main chart area`);
-      console.log(`🛡️ Timeframe detection uses stable selectors: #header-toolbar-intervals + aria-label/data-tooltip`);
+                  console.log(`📸 Note: Full page screenshot captured - AI has symbol and timeframe context`);
+        console.log(`🛡️ Timeframe detection: ${timeframe} (stable selectors: #header-toolbar-intervals)`);
+        console.log(`🎯 Symbol detection: ${symbol || 'not detected'} (stable selectors: #header-toolbar-symbol-search)`);
+        console.log(`💡 AI prompt includes: ${symbol ? symbol + ' ' + timeframe : 'auto-detection instructions'}`);
     
     const response = await fetch(apiConfig.endpoint, {
       method: 'POST',
@@ -1600,12 +1653,13 @@ For regular chat responses (not initial analysis), be natural and conversational
           image: this.screenshots[tf].image
         }));
         
-        response = await this.analyzeWithAI(allImages, 'multi-timeframe', false, message);
-        
-        // Store conversation in the most recent timeframe for history
+        // Get symbol from most recent screenshot and store conversation there
         const recentTimeframe = timeframes.sort((a, b) => 
           this.screenshots[b].timestamp - this.screenshots[a].timestamp
         )[0];
+        const symbol = this.screenshots[recentTimeframe]?.symbol;
+        
+        response = await this.analyzeWithAI(allImages, 'multi-timeframe', false, message, symbol);
         
         this.screenshots[recentTimeframe].conversation.push({
           role: 'user',
@@ -1634,7 +1688,8 @@ For regular chat responses (not initial analysis), be natural and conversational
         }
         
         const activeScreenshot = this.screenshots[this.activeTimeframe];
-        response = await this.analyzeWithAI(activeScreenshot.image, this.activeTimeframe, false, message);
+        const symbol = activeScreenshot.symbol;
+        response = await this.analyzeWithAI(activeScreenshot.image, this.activeTimeframe, false, message, symbol);
         
         // Update conversation history for this timeframe
         activeScreenshot.conversation.push({
@@ -3005,6 +3060,73 @@ Hey! I'm now running on ${providerName} with the ${this.currentModel} model. Don
     const modal = document.getElementById('settings-modal');
     if (modal) {
       modal.style.display = 'none';
+    }
+  }
+
+  // Auto-detect the current symbol from TradingView's interface using stable selectors
+  detectCurrentSymbol() {
+    try {
+      console.log(`🔍 Starting symbol detection using stable selectors (ID + text content)...`);
+      
+      // Method 1: Use stable ID selector for symbol search button
+      const symbolButton = document.querySelector('#header-toolbar-symbol-search');
+      if (symbolButton) {
+        console.log(`✅ Found symbol search button using stable ID selector`);
+        
+        // Priority 1: Text content from js-button-text div (most reliable)
+        const textDiv = symbolButton.querySelector('.js-button-text');
+        if (textDiv && textDiv.textContent) {
+          const symbolText = textDiv.textContent.trim();
+          console.log(`🎯 Method 1a - Found symbol from js-button-text: "${symbolText}"`);
+          return symbolText;
+        }
+        
+        // Priority 2: aria-label fallback
+        const ariaLabel = symbolButton.getAttribute('aria-label');
+        if (ariaLabel && ariaLabel.includes('Symbol')) {
+          console.log(`🎯 Method 1b - Found from aria-label: "${ariaLabel}"`);
+          // aria-label might be "Symbol Search", so this is just for debugging
+        }
+        
+        // Priority 3: data-tooltip fallback
+        const dataTooltip = symbolButton.getAttribute('data-tooltip');
+        if (dataTooltip && dataTooltip !== 'Symbol Search') {
+          console.log(`🎯 Method 1c - Found from data-tooltip: "${dataTooltip}"`);
+          return dataTooltip;
+        }
+        
+        // Priority 4: Any text content in the button
+        const buttonText = symbolButton.textContent?.trim().replace('Symbol Search', '').trim();
+        if (buttonText) {
+          console.log(`🎯 Method 1d - Found from button text: "${buttonText}"`);
+          return buttonText;
+        }
+      }
+      
+      // Method 2: Look for any element with symbol-like text patterns in the header toolbar
+      const headerToolbar = document.querySelector('[role="toolbar"]');
+      if (headerToolbar) {
+        console.log(`🔍 Searching header toolbar for symbol patterns...`);
+        
+        // Look for text that matches common trading pair patterns
+        const allButtons = headerToolbar.querySelectorAll('button, div');
+        for (const element of allButtons) {
+          const text = element.textContent?.trim();
+          if (text && /^[A-Z]{2,6}USD$|^[A-Z]{2,6}USDT$|^[A-Z]{2,6}BTC$|^[A-Z]{2,6}ETH$/.test(text)) {
+            console.log(`🎯 Method 2 - Found symbol pattern: "${text}"`);
+            return text;
+          }
+        }
+      }
+      
+      console.warn('⚠️ Could not auto-detect symbol from TradingView using stable selectors');
+      console.log('💡 Tip: Ensure a trading pair is selected in TradingView!');
+      console.log('🔧 Detection uses stable selectors: #header-toolbar-symbol-search + .js-button-text');
+      return null;
+      
+    } catch (error) {
+      console.error('❌ Symbol detection failed:', error);
+      return null;
     }
   }
 }

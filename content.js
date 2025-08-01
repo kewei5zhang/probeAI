@@ -33,7 +33,7 @@ class TradingAIAssistant {
     this.maxTimeframes = 4; // Maximum number of timeframes to store
     this.isMultiTimeframeMode = false; // Whether we're comparing multiple timeframes
     this.currentProvider = 'openai'; // Current AI provider (openai or grok)
-    this.currentModel = 'gpt-4o'; // Current model for the selected provider
+    this.currentModel = 'gpt-4o'; // Current vision model for the selected provider
     this.messageCount = 0; // Track total messages for cleanup
     this.maxMessages = 20; // Maximum messages in DOM
     this.maxConversationHistory = 6; // Maximum conversation history for API
@@ -537,11 +537,10 @@ ${Object.keys(this.screenshots).length > 0 ?
               
               <div class="provider-settings">
                 <div class="model-selection">
-                  <label class="model-label">Model:</label>
+                  <label class="model-label">Vision Model:</label>
                   <select id="openai-model-select">
-                    <option value="gpt-4o">GPT-4o</option>
+                    <option value="gpt-4o">GPT-4o (Recommended)</option>
                     <option value="gpt-4-vision-preview">GPT-4 Vision Preview</option>
-                    <option value="gpt-4-turbo">GPT-4 Turbo</option>
                   </select>
                 </div>
                 
@@ -570,12 +569,10 @@ ${Object.keys(this.screenshots).length > 0 ?
               
               <div class="provider-settings">
                 <div class="model-selection">
-                  <label class="model-label">Model:</label>
+                  <label class="model-label">Vision Model:</label>
                   <select id="grok-model-select">
-                    <option value="grok-3-beta" selected>Grok-3 Beta (Recommended)</option>
-                    <option value="grok-3-mini-beta">Grok-3 Mini Beta</option>
+                    <option value="grok-vision-beta" selected>Grok Vision Beta (Recommended)</option>
                     <option value="grok-2-vision-1212">Grok-2 Vision 1212</option>
-                    <option value="grok-vision-beta">Grok Vision Beta (Legacy)</option>
                   </select>
                 </div>
                 
@@ -594,6 +591,9 @@ ${Object.keys(this.screenshots).length > 0 ?
           <div class="settings-footer">
             <div class="api-key-help">
               <h4>🔑 Getting API Keys</h4>
+              <p style="font-size: 12px; color: #888; margin-bottom: 12px;">
+                📸 Only vision-capable models are shown. These models can analyze your TradingView charts.
+              </p>
               <div class="help-links">
                 <a href="https://platform.openai.com/api-keys" target="_blank">
                   🧠 Get OpenAI API Key
@@ -860,7 +860,7 @@ ${Object.keys(this.screenshots).length > 0 ?
 
     // Compare all button
     this.safeAddEventListener('compare-all-btn', 'click', () => {
-      this.compareAllTimeframes();
+      this.enableMultiTimeframeMode();
     });
 
     // Clear screenshot button
@@ -976,10 +976,29 @@ ${Object.keys(this.screenshots).length > 0 ?
         throw new Error('Extension context invalidated. Please refresh the page.');
       }
 
-      // Capture screenshot via background script
-      response = await chrome.runtime.sendMessage({
-        action: 'captureScreenshot'
-      });
+      // Temporarily hide chat window to avoid blocking the chart
+      const chatContainer = document.getElementById('trading-ai-chat');
+      const wasVisible = chatContainer && chatContainer.style.display !== 'none';
+      
+      if (chatContainer && wasVisible) {
+        console.log('📸 Temporarily hiding chat window for clean screenshot');
+        chatContainer.style.display = 'none';
+        // Give browser time to render without the chat window
+        await new Promise(resolve => setTimeout(resolve, 200));
+      }
+
+      try {
+        // Capture screenshot via background script
+        response = await chrome.runtime.sendMessage({
+          action: 'captureScreenshot'
+        });
+      } finally {
+        // Always restore chat window visibility
+        if (chatContainer && wasVisible) {
+          console.log('📸 Restoring chat window visibility');
+          chatContainer.style.display = '';
+        }
+      }
 
       console.log('🤖 Background response:', response);
 
@@ -1285,6 +1304,16 @@ For regular chat responses (not initial analysis), be natural and conversational
     };
     
     console.log(`🔍 Request Headers:`, requestHeaders);
+    console.log(`🔍 Model supports vision:`, this.isVisionCapableModel(apiConfig.model, this.currentProvider));
+    
+    // Debug the image data format
+    if (isInitialAnalysis && imageData) {
+      console.log(`📸 Image data format check:`, {
+        isDataUrl: imageData.startsWith('data:image/'),
+        length: imageData.length,
+        prefix: imageData.substring(0, 50)
+      });
+    }
     
     const response = await fetch(apiConfig.endpoint, {
       method: 'POST',
@@ -1319,7 +1348,14 @@ For regular chat responses (not initial analysis), be natural and conversational
       } else if (response.status === 403) {
         errorMessage = `Access denied. Make sure your API key has access to ${providerName} Vision models.`;
       } else if (response.status === 404) {
-        errorMessage = `${providerName} model not found. Model "${apiConfig.model}" may not be available. Try a different model.`;
+        errorMessage = `${providerName} model not found. Model "${apiConfig.model}" may not be available. Try a different vision-capable model.`;
+      } else if (response.status === 400) {
+        // Check if it's a vision-related error
+        if (responseBody.includes('image') || responseBody.includes('vision') || responseBody.includes('multimodal')) {
+          errorMessage = `Vision not supported. The model "${apiConfig.model}" may not support image analysis. Please use a vision-capable model like gpt-4o or gpt-4-vision-preview.`;
+        } else {
+          errorMessage = `Bad request. ${responseBody.slice(0, 200)}`;
+        }
       } else {
         errorMessage = `${providerName} API error: ${response.status}`;
         if (responseBody) {
@@ -1621,11 +1657,21 @@ For regular chat responses (not initial analysis), be natural and conversational
       
       this.currentProvider = result.ai_provider || 'openai';
       
-      // Load the model for the current provider
+      // Load the model for the current provider and ensure it supports vision
       if (this.currentProvider === 'openai') {
         this.currentModel = result.openai_model || 'gpt-4o';
+        // Ensure we're using a vision-capable model
+        if (!this.isVisionCapableModel(this.currentModel, 'openai')) {
+          console.warn(`⚠️ Model ${this.currentModel} may not support vision, switching to gpt-4o`);
+          this.currentModel = 'gpt-4o';
+        }
       } else if (this.currentProvider === 'grok') {
-        this.currentModel = result.grok_model || 'grok-3-beta';
+        this.currentModel = result.grok_model || 'grok-vision-beta';
+        // Ensure we're using a vision-capable model
+        if (!this.isVisionCapableModel(this.currentModel, 'grok')) {
+          console.warn(`⚠️ Model ${this.currentModel} may not support vision, switching to grok-vision-beta`);
+          this.currentModel = 'grok-vision-beta';
+        }
       }
       
       console.log(`🤖 Current AI Provider: ${this.currentProvider}`);
@@ -1633,8 +1679,17 @@ For regular chat responses (not initial analysis), be natural and conversational
     } catch (error) {
       console.error('Failed to load provider settings:', error);
       this.currentProvider = 'openai'; // Fallback to OpenAI
-      this.currentModel = 'gpt-4o'; // Fallback model
+      this.currentModel = 'gpt-4o'; // Fallback to vision-capable model
     }
+  }
+
+  isVisionCapableModel(model, provider) {
+    const visionModels = {
+      openai: ['gpt-4o', 'gpt-4-vision-preview'],
+      grok: ['grok-vision-beta', 'grok-2-vision-1212']
+    };
+    
+    return visionModels[provider]?.includes(model) || false;
   }
 
   getProviderConfig() {

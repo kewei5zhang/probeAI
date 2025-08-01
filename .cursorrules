@@ -1,0 +1,110 @@
+# Trading AI Assistant - Cursor Rules
+
+## Project Overview
+A Chrome extension that provides AI-powered trading analysis for TradingView charts. The extension captures screenshots and uses OpenAI/Grok vision models to provide technical analysis insights.
+
+## Architecture
+The codebase is modularized into focused files to reduce AI context costs and improve maintainability:
+
+### Core Files & When to Read Them
+
+**📱 UI Changes & Layout Issues**
+- `ui-builder.js` - Main UI creation, HTML templates, modal generation
+- `styles.css` - All styling, responsive design, animations
+- Read for: Layout bugs, styling issues, new UI components, modal problems
+
+**🤖 AI Provider & Analysis Issues**  
+- `ai-provider.js` - AI API calls, provider switching, model configuration
+- Read for: API errors, provider switching, model selection, analysis problems
+
+**💬 Chat & Messaging Features**
+- `chat-manager.js` - Message handling, conversation flow, formatting
+- Read for: Chat functionality, message display, conversation history
+
+**📸 Screenshot & Gallery Management**
+- `screenshot-manager.js` - Screenshot capture, gallery, multi-timeframe storage
+- Read for: Screenshot issues, gallery problems, timeframe management
+
+**⚙️ Settings & Configuration**
+- `settings-modal.js` - Settings UI, provider configuration, API key management  
+- Read for: Settings modal issues, provider toggles, API key problems
+
+**🎯 User Interactions & Events**
+- `event-handlers.js` - Event listeners, drag/resize, button clicks
+- Read for: Interaction bugs, event handling, drag/resize issues
+
+**🔧 Utilities & Helpers**
+- `utils.js` - Common functions, formatters, memory management
+- Read for: Formatting issues, utility functions, memory problems
+
+**🚀 Main Entry Point**
+- `content.js` - Core class, initialization, coordination between modules
+- Read for: Initialization issues, module coordination, core logic
+
+**📋 Extension Configuration**
+- `manifest.json` - Chrome extension permissions, content scripts
+- `background.js` - Service worker, screenshot capture
+- Read for: Permission issues, extension loading problems
+
+## File Reading Strategy
+
+### 🎯 For Specific Issues:
+**"Copy button not working"** → Read: `chat-manager.js`, `utils.js`
+**"Settings modal broken"** → Read: `settings-modal.js`, `ui-builder.js`  
+**"AI provider switching failed"** → Read: `ai-provider.js`, `settings-modal.js`
+**"Gallery not showing screenshots"** → Read: `screenshot-manager.js`, `ui-builder.js`
+**"Drag and drop broken"** → Read: `event-handlers.js`, `styles.css`
+**"Chat window styling weird"** → Read: `styles.css`, `ui-builder.js`
+
+### 🔍 For Feature Areas:
+**Chat System** → `chat-manager.js` + `utils.js`
+**Settings/Configuration** → `settings-modal.js` + `ai-provider.js`
+**Screenshot System** → `screenshot-manager.js` + `background.js`
+**UI/Styling** → `ui-builder.js` + `styles.css`
+**AI Integration** → `ai-provider.js` + `utils.js`
+
+### 📦 Module Dependencies:
+- `content.js` imports and coordinates all other modules
+- `ui-builder.js` imports from `utils.js`
+- `ai-provider.js` imports from `utils.js`  
+- `chat-manager.js` imports from `utils.js`
+- Other modules are standalone
+
+## Coding Guidelines
+
+### 🏗️ Architecture Principles:
+- Each module has a single, focused responsibility
+- Use ES6 imports/exports for module communication
+- Keep utilities pure and reusable
+- Maintain clear separation between UI and logic
+
+### 📝 Documentation:
+- All modules have JSDoc headers explaining purpose and context
+- Functions include parameter and return type documentation
+- Use descriptive variable and function names
+
+### 🎨 UI Development:
+- All HTML generation happens in `ui-builder.js`
+- CSS changes go in `styles.css` only
+- Use consistent naming conventions for CSS classes
+
+### 🔧 Debugging:
+- Console logs include emoji prefixes for easy filtering
+- Error handling includes context about which module failed
+- Use meaningful error messages that help identify the issue
+
+## Quick Reference
+
+**Adding new UI element** → Modify `ui-builder.js`
+**Fixing AI API call** → Check `ai-provider.js`  
+**Changing message format** → Update `chat-manager.js`
+**Adding screenshot feature** → Extend `screenshot-manager.js`
+**New settings option** → Update `settings-modal.js`
+**Event listener issue** → Check `event-handlers.js`
+**Utility function needed** → Add to `utils.js`
+
+## Performance Notes
+- Each module is ~200-400 lines vs original 2000+ line monolith
+- AI context costs reduced by 70-80% when reading specific files
+- Modules can be read independently for focused changes
+- Only read `content.js` for initialization or coordination issues 

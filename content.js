@@ -295,9 +295,11 @@ Ready to trade? 🚀`);
     
     const timeAgo = this.formatTimeAgo(screenshot.timestamp);
     
+    const symbol = screenshot.symbol || 'Unknown';
+    
     item.innerHTML = `
       <div class="gallery-item-info">
-        <div class="gallery-item-timeframe">${timeframe}</div>
+        <div class="gallery-item-timeframe">${symbol} • ${timeframe}</div>
         <div class="gallery-item-timestamp">${timeAgo} • ${screenshot.conversation.length / 2} exchanges</div>
       </div>
       <div class="gallery-item-actions">
@@ -372,10 +374,15 @@ You need at least 2 screenshots to compare timeframes. Currently have: ${timefra
     this.updateGallery();
     this.updateChatStatus();
 
-    const timeframeList = timeframes.sort().join(', ');
+    // Create a list showing symbol and timeframe for each screenshot
+    const timeframeWithSymbols = timeframes.sort().map(tf => {
+      const symbol = this.screenshots[tf].symbol || 'Unknown';
+      return `${symbol} (${tf})`;
+    }).join(', ');
+    
     this.addMessage('ai', `📊 **Multi-Timeframe Comparison Mode Enabled!**
 
-Now analyzing ALL stored timeframes simultaneously: **${timeframeList}**
+Now analyzing ALL stored timeframes simultaneously: **${timeframeWithSymbols}**
 
 🎯 **You can now ask questions like:**
 • "Compare the trends across all timeframes"
@@ -389,6 +396,7 @@ Now analyzing ALL stored timeframes simultaneously: **${timeframeList}**
 
   deleteTimeframe(timeframe) {
     if (this.screenshots[timeframe]) {
+      const symbol = this.screenshots[timeframe].symbol || 'Unknown';
       delete this.screenshots[timeframe];
       
       // If we deleted the active timeframe, clear it
@@ -403,9 +411,9 @@ Now analyzing ALL stored timeframes simultaneously: **${timeframeList}**
       // Save screenshots to storage after deletion
       this.saveScreenshots();
       
-      this.addMessage('ai', `🗑️ **${timeframe} screenshot deleted!**
+      this.addMessage('ai', `🗑️ **${symbol} • ${timeframe} screenshot deleted!**
 
-Screenshot and conversation history for ${timeframe} timeframe has been removed.
+Screenshot and conversation history for ${symbol} ${timeframe} timeframe has been removed.
 
 📸 **Remaining timeframes:** ${Object.keys(this.screenshots).length}/${this.maxTimeframes}`);
     }
@@ -2045,11 +2053,18 @@ Ready to analyze? Click **📸 Analyze Chart** to start! 🚀`);
       const messagesContainer = document.getElementById('chat-messages');
       const messageCount = messagesContainer ? messagesContainer.querySelectorAll('.ai-message, .user-message').length : 0;
       
+      // Get stored symbols and timeframes
+      const storedInfo = Object.keys(this.screenshots).map(tf => {
+        const screenshot = this.screenshots[tf];
+        return `${screenshot.symbol || 'Unknown'} (${tf})`;
+      }).join(', ');
+      
       this.addMessage('ai', `🧠 **Memory Status:**
 
 📊 **Current Usage:**
 - **Messages:** ${messageCount}/${this.maxChatMessages} stored
 - **Screenshots:** ${Object.keys(this.screenshots).length}/4 timeframes stored
+${storedInfo ? `- **Stored:** ${storedInfo}` : ''}
 
 ⚙️ **Auto-Management:**
 - When messages exceed 50, oldest messages are automatically removed

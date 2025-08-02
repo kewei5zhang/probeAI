@@ -28,11 +28,11 @@ async function captureScreenshot(sendResponse) {
 
     console.log('📸 Attempting to capture tab:', tab.url);
 
-    // Capture with optimized settings for faster processing
+    // Capture with maximum quality for best chart analysis
     const captureStart = performance.now();
     const dataUrl = await chrome.tabs.captureVisibleTab(tab.windowId, {
-      format: 'jpeg',  // JPEG is much smaller than PNG for charts/photos
-      quality: 65      // Balanced: Good quality but still fast
+      format: 'png'    // PNG format preserves chart quality perfectly (no compression)
+      // No quality parameter for PNG - it's lossless
     });
     const captureEnd = performance.now();
     

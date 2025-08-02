@@ -14,7 +14,8 @@
 - **Auto-detects symbol** (ETHUSD, BTCUSD, etc.) from chart header
 - **Auto-detects timeframe** (1h, 4h, 1d, etc.) from TradingView interface
 - **Smart symbol focus** - Ignores watchlists and side panels
-- **High-quality capture** with optimized compression
+- **High-quality capture** - PNG format up to 1920x1080 resolution
+- **Quality presets** - Ultra, High, Medium, Low (adjustable via console)
 - **No manual configuration** - just click and analyze!
 
 ### 📊 **Multi-Timeframe Analysis**
@@ -29,6 +30,13 @@
 - **Copy functionality** - select any text and use Ctrl+C
 - **Smart message formatting** with structured AI responses
 - **Progressive loading** for large responses (prevents DOM crashes)
+
+### 📤 **Screenshot Sharing & Export**
+- **Download screenshots** - Save as PNG files with smart naming
+- **Copy to clipboard** - Paste directly in Discord, Telegram, etc.
+- **Smart filenames** - ETHUSD_4h_2024-01-15T10-30-00.png format
+- **Visual feedback** - Button animations show copy/download status
+- **Cross-platform** - Works in all major browsers
 
 ### 🎨 **Advanced UI/UX**
 - **Draggable interface** - position anywhere on screen
@@ -79,6 +87,12 @@
 
 ## 📱 How to Use
 
+### Getting Started
+1. **Configure AI Provider** - Click ⚙️ → Enter OpenAI or Grok API key → Save
+2. **First analysis** - Click "📸 Analyze Chart" for instant analysis
+3. **Read the welcome guide** - Comprehensive instructions appear on first use
+4. **Access help anytime** - Type `help()` in browser console for quick reference
+
 ### Basic Analysis
 1. **Open TradingView** - Any trading pair and timeframe
 2. **Auto-detection** - Extension reads symbol (ETHUSD) and timeframe (4h)
@@ -97,6 +111,14 @@
 - **Text selection** - Select any AI response text (custom blue highlights)
 - **Copy with Ctrl+C** - Standard browser copy behavior
 - **Ask questions** - "What's the next resistance level?" "Should I buy here?"
+
+### Sharing Screenshots
+1. **Take screenshots** on any timeframes you want to share
+2. **Open screenshot gallery** - Scroll down to see stored screenshots
+3. **Download option** - Click 📥 to save as PNG file with smart naming
+4. **Copy to clipboard** - Click 📋 to copy for instant pasting
+5. **Share anywhere** - Paste in Discord, Telegram, Twitter, or any platform
+6. **Smart filenames** - Files saved as ETHUSD_4h_2024-01-15T10-30-00.png
 
 ## 🎯 What the AI Analyzes
 
@@ -127,6 +149,17 @@
 - **Memory limits** - Keeps 4 timeframes max, removes oldest when full
 - **Gallery view** - Visual management with timestamps
 - **Manual clearing** - Clear individual timeframes or all at once
+- **Download as PNG** - Save screenshots with smart naming (SYMBOL_TIMEFRAME_TIMESTAMP.png)
+- **Copy to clipboard** - One-click copy for pasting in Discord, Telegram, etc.
+- **Share anywhere** - Export screenshots to any platform or application
+
+### High-Quality Image System
+- **PNG capture** - Lossless format preserves chart detail perfectly
+- **Full HD resolution** - Up to 1920x1080 for crystal-clear analysis
+- **Quality presets** - Ultra (2560x1440), High (1920x1080), Medium (1280x720), Low (800x600)
+- **Smart format selection** - Auto-chooses PNG vs JPEG based on file size
+- **Console control** - `setQuality('ultra')` for maximum quality
+- **Real-time switching** - Change quality without reloading extension
 
 ### AI Provider Management
 - **Dual support** - Switch between OpenAI and Grok instantly
@@ -187,6 +220,15 @@
 - **Use both AI providers** - Different perspectives on same chart
 - **Save important analysis** - Screenshots persist until manually cleared
 - **Leverage chat history** - Reference previous conversations
+- **Share screenshots** - Download or copy charts for Discord/Telegram discussions
+- **Smart naming** - Downloaded files include symbol, timeframe, and timestamp
+- **Quick sharing** - Copy to clipboard works instantly in most platforms
+- **Quality control** - Use `setQuality('ultra')` for max detail, `setQuality('medium')` for speed
+- **Monitor quality** - Status bar shows current quality level (⚡ high, 🔥 ultra, etc.)
+- **Dynamic provider display** - Both header and status show active AI provider/model
+- **Easy switching** - Use `switchProvider('grok')` to test different providers
+- **Comprehensive help** - `help()` command shows detailed usage instructions
+- **Welcome guide** - Detailed instructions appear on first use with all features
 
 ## 🔮 Recent Updates
 
@@ -200,6 +242,14 @@
 - ✅ **Memory management** and tab cleanup
 - ✅ **Progressive loading** for large responses
 - ✅ **Stable DOM selectors** won't break with TradingView updates
+- ✅ **Screenshot download & copy** - share screenshots anywhere
+- ✅ **Smart file naming** - SYMBOL_TIMEFRAME_TIMESTAMP.png format
+- ✅ **High-quality screenshots** - PNG format up to 1920x1080 resolution
+- ✅ **Quality presets** - Ultra, High, Medium, Low with console control
+- ✅ **Dynamic status display** - Header and status area show active AI provider/model
+- ✅ **Console controls** - Switch providers and quality with simple commands
+- ✅ **Comprehensive help system** - Detailed welcome guide and `help()` command
+- ✅ **Usage instructions** - Complete guide for all features in welcome message
 
 ### Previous Versions
 - v2.0 - Basic screenshot analysis

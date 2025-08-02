@@ -27,18 +27,38 @@ class TradingAIAssistant {
     this.dragOffset = { x: 0, y: 0 };
     this.isResizing = false;
     this.startHeight = 0;
-    // Multi-timeframe screenshot storage
-    this.screenshots = {}; // Store multiple timeframe screenshots
-    this.activeTimeframe = null; // Currently selected timeframe for conversation
-    this.maxTimeframes = 4; // Maximum number of timeframes to store
-    this.isMultiTimeframeMode = false; // Whether we're comparing multiple timeframes
-    this.currentProvider = 'openai'; // Current AI provider (openai or grok)
-    this.currentModel = 'gpt-4o'; // Current vision model for the selected provider
-    this.messageCount = 0; // Track total messages for cleanup
-    this.maxMessages = 20; // Maximum messages in DOM
-    this.maxConversationHistory = 6; // Maximum conversation history for API
-    this.memoryCheckInterval = null; // Memory monitoring interval
-    this.isInitialized = false; // Track if extension is fully initialized
+    this.screenshots = {};
+    this.activeTimeframe = null;
+    this.isMultiTimeframeMode = false;
+    this.maxTimeframes = 4;
+    this.isInitialized = false;
+    
+    // Image quality presets
+    this.qualityPresets = {
+      'ultra': { maxWidth: 2560, maxHeight: 1440, format: 'png', jpegQuality: 0.98, maxSizeMB: 5 },
+      'high': { maxWidth: 1920, maxHeight: 1080, format: 'png', jpegQuality: 0.95, maxSizeMB: 2 },  // Default
+      'medium': { maxWidth: 1280, maxHeight: 720, format: 'auto', jpegQuality: 0.85, maxSizeMB: 1 },
+      'low': { maxWidth: 800, maxHeight: 600, format: 'jpeg', jpegQuality: 0.7, maxSizeMB: 0.5 }
+    };
+    this.currentQuality = 'high'; // Default to high quality
+    
+    // Provider settings
+    this.providerSettings = {
+      openai: {
+        enabled: false,
+        apiKey: '',
+        models: ['gpt-4o'], // Only vision-capable models
+        selectedModel: 'gpt-4o'
+      },
+      grok: {
+        enabled: false,
+        apiKey: '',
+        models: ['grok-4'], // Only vision-capable models  
+        selectedModel: 'grok-4'
+      }
+    };
+    
+    this.currentProvider = 'openai'; // Default provider
     this.init();
   }
 
@@ -50,18 +70,24 @@ class TradingAIAssistant {
       this.createChatInterface();
       console.log('✅ Chat interface created');
       
+      // Update provider display to show correct model
+      this.updateProviderDisplay();
+      
+      // Update chat status to show correct provider
+      this.updateChatStatus();
+      
       this.setupEventListeners();
       console.log('✅ Event listeners set up');
+      
+      // Verify button setup to ensure toggle works
+      this.verifyButtonSetup();
+      console.log('✅ Button setup verified');
       
       this.setupSettingsModal();
       console.log('✅ Settings modal set up');
       
       await this.loadProviderSettings();
       console.log('✅ Provider settings loaded');
-      
-      // Load chat history from storage
-      await this.loadChatHistory();
-      console.log('✅ Chat history loaded');
       
       this.updateProviderDisplay();
       
@@ -76,6 +102,90 @@ class TradingAIAssistant {
       
       this.isInitialized = true;
       console.log('✅ TradingAI Assistant fully initialized');
+      
+      // Force-ensure toggle button works with a small delay
+      setTimeout(() => {
+        this.forceAttachToggleListener();
+        
+        // Final verification of initial state
+        const chatContainer = document.getElementById('trading-ai-chat');
+        const toggle = document.getElementById('chat-toggle');
+        console.log('🔍 FINAL STATE CHECK:');
+        console.log('  Container exists:', !!chatContainer);
+        console.log('  Container classes:', chatContainer?.className);
+        console.log('  Toggle exists:', !!toggle);
+        console.log('  Toggle text:', toggle?.textContent);
+        console.log('  Toggle clickable:', toggle ? 'YES' : 'NO');
+        
+        if (toggle) {
+          // Add final emergency handler
+          const self = this;
+          toggle.onclick = function() {
+            console.log('🆘 EMERGENCY ONCLICK HANDLER TRIGGERED!');
+            self.toggleChat();
+          };
+          
+          // Make globally accessible for debugging
+          window.tradingAIToggle = toggle;
+          window.tradingAIInstance = this;
+          window.debugToggle = () => this.toggleChat();
+          window.setQuality = (level) => this.setImageQuality(level);  // Global quality control
+          window.switchProvider = (provider) => {
+            if (provider === 'openai' || provider === 'grok') {
+              this.currentProvider = provider;
+              this.updateProviderDisplay();
+              this.updateChatStatus();  // Update status area too
+              console.log(`🔄 Switched to ${provider} - Check the header AND status!`);
+            } else {
+              console.log('❌ Invalid provider. Use: switchProvider("openai") or switchProvider("grok")');
+            }
+          };
+          
+          // Global function to show current status
+          window.showStatus = () => {
+            const providerConfig = this.getProviderConfig();
+            console.log('📊 CURRENT STATUS:');
+            console.log(`  Provider: ${this.currentProvider} (${providerConfig.name})`);
+            console.log(`  Model: ${providerConfig.model}`);
+            console.log(`  Quality: ${this.currentQuality}`);
+            console.log(`  Header shows: ${document.getElementById('provider-status')?.textContent || 'N/A'}`);
+            console.log(`  Status shows: ${document.getElementById('status-text')?.textContent || 'N/A'}`);
+            return { provider: this.currentProvider, model: providerConfig.model, quality: this.currentQuality };
+          };
+          
+          // Global help function
+          window.help = () => {
+            this.addMessage('ai', `🔧 **Quick Reference Commands:**
+
+**📸 Screenshot Analysis:**
+- Click "📸 Analyze Chart" for single analysis
+- Take multiple screenshots → "Compare All Timeframes"
+
+**📤 Share Screenshots:**
+- 📥 Download button → Save as PNG
+- 📋 Copy button → Paste in Discord/Telegram
+
+**🎛️ Console Commands:**
+- \`setQuality('ultra')\` → Maximum screenshot quality
+- \`switchProvider('grok')\` → Switch AI provider
+- \`showStatus()\` → Show current settings
+- \`help()\` → Show this help again
+
+**💬 Chat Tips:**
+- Ask follow-up questions about screenshots
+- Select text with mouse → Ctrl+C to copy
+- History persists across page reloads
+
+**🎯 Pro Usage:**
+- Use multiple timeframes (1h + 4h + 1d) for context
+- Clear charts before screenshots for better analysis
+- Screenshots auto-detect symbol and timeframe
+
+Ready to trade? 🚀`);
+            return 'Help displayed in chat! 📖';
+          };
+        }
+      }, 250);
       
     } catch (error) {
       console.error('❌ TradingAI initialization failed:', error);
@@ -181,14 +291,28 @@ class TradingAIAssistant {
         <div class="gallery-item-timestamp">${timeAgo} • ${screenshot.conversation.length / 2} exchanges</div>
       </div>
       <div class="gallery-item-actions">
+        <button class="gallery-item-btn download" title="Download screenshot">📥</button>
+        <button class="gallery-item-btn copy" title="Copy to clipboard">📋</button>
         <button class="gallery-item-btn select" title="Use this timeframe for chat">💬</button>
         <button class="gallery-item-btn delete" title="Delete this screenshot">🗑️</button>
       </div>
     `;
     
     // Add event listeners
+    const downloadBtn = item.querySelector('.download');
+    const copyBtn = item.querySelector('.copy');
     const selectBtn = item.querySelector('.select');
     const deleteBtn = item.querySelector('.delete');
+    
+    downloadBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.downloadScreenshot(timeframe, screenshot);
+    });
+    
+    copyBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.copyScreenshotToClipboard(timeframe, screenshot, copyBtn);
+    });
     
     selectBtn.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -257,24 +381,166 @@ Now analyzing ALL stored timeframes simultaneously: **${timeframeList}**
     if (this.screenshots[timeframe]) {
       delete this.screenshots[timeframe];
       
-      // If we deleted the active timeframe, select another one
+      // If we deleted the active timeframe, clear it
       if (this.activeTimeframe === timeframe) {
-        const remainingTimeframes = Object.keys(this.screenshots);
-        this.activeTimeframe = remainingTimeframes.length > 0 ? remainingTimeframes[0] : null;
+        this.activeTimeframe = null;
+        this.isMultiTimeframeMode = false;
       }
       
       this.updateGallery();
       this.updateChatStatus();
-      this.addMessage('ai', `🗑️ **Deleted ${timeframe} screenshot**
-
-Screenshot and conversation history removed to free up memory.
-
-${Object.keys(this.screenshots).length > 0 ? 
-  `📸 **Remaining timeframes:** ${Object.keys(this.screenshots).join(', ')}` : 
-  '📸 **No screenshots remaining.** Take a new screenshot to continue analysis.'}`);
       
-      // Force garbage collection
-      this.forceGarbageCollection();
+      this.addMessage('ai', `🗑️ **${timeframe} screenshot deleted!**
+
+Screenshot and conversation history for ${timeframe} timeframe has been removed.
+
+📸 **Remaining timeframes:** ${Object.keys(this.screenshots).length}/${this.maxTimeframes}`);
+    }
+  }
+
+  // Download screenshot as image file
+  downloadScreenshot(timeframe, screenshot) {
+    try {
+      console.log(`📥 Downloading screenshot for ${timeframe} timeframe`);
+      
+      // Check if image data exists
+      if (!screenshot.image) {
+        throw new Error('Screenshot image data not found');
+      }
+      
+      // Convert base64 to blob
+      const base64Data = screenshot.image.split(',')[1];
+      const byteCharacters = atob(base64Data);
+      const byteNumbers = new Array(byteCharacters.length);
+      
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      }
+      
+      const byteArray = new Uint8Array(byteNumbers);
+      const blob = new Blob([byteArray], { type: 'image/png' });
+      
+      // Create download link
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      
+      // Generate filename with symbol, timeframe and timestamp
+      const symbol = screenshot.symbol || 'CHART';
+      const timestamp = new Date(screenshot.timestamp).toISOString().slice(0, 19).replace(/:/g, '-');
+      const filename = `${symbol}_${timeframe}_${timestamp}.png`;
+      
+      link.href = url;
+      link.download = filename;
+      link.style.display = 'none';
+      
+      // Trigger download
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      // Clean up blob URL
+      setTimeout(() => URL.revokeObjectURL(url), 100);
+      
+      this.addMessage('ai', `📥 **Screenshot Downloaded!**
+
+✅ ${filename}
+
+💡 You can now share this screenshot in Discord, Telegram, or any other platform!`);
+      
+      console.log(`✅ Screenshot downloaded successfully: ${filename}`);
+      
+    } catch (error) {
+      console.error('❌ Failed to download screenshot:', error);
+      this.addMessage('ai', `❌ **Download Failed**
+
+Sorry, couldn't download the screenshot. Please try again or check browser permissions.
+
+Error: ${error.message}`);
+    }
+  }
+
+  // Copy screenshot to clipboard
+  async copyScreenshotToClipboard(timeframe, screenshot, buttonElement) {
+    try {
+      console.log(`📋 Copying screenshot for ${timeframe} timeframe to clipboard`);
+      
+      // Check if image data exists
+      if (!screenshot.image) {
+        throw new Error('Screenshot image data not found');
+      }
+      
+      // Check if Clipboard API is supported
+      if (!navigator.clipboard || !navigator.clipboard.write) {
+        throw new Error('Clipboard API not supported in this browser');
+      }
+      
+      // Convert base64 to blob
+      const base64Data = screenshot.image.split(',')[1];
+      const byteCharacters = atob(base64Data);
+      const byteNumbers = new Array(byteCharacters.length);
+      
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      }
+      
+      const byteArray = new Uint8Array(byteNumbers);
+      const blob = new Blob([byteArray], { type: 'image/png' });
+      
+      // Create ClipboardItem and write to clipboard
+      const clipboardItem = new ClipboardItem({
+        'image/png': blob
+      });
+      
+      await navigator.clipboard.write([clipboardItem]);
+      
+      // Visual feedback on button
+      const originalText = buttonElement.textContent;
+      const originalTitle = buttonElement.title;
+      
+      buttonElement.textContent = '✅';
+      buttonElement.title = 'Copied!';
+      buttonElement.style.color = '#28a745';
+      
+      setTimeout(() => {
+        buttonElement.textContent = originalText;
+        buttonElement.title = originalTitle;
+        buttonElement.style.color = '';
+      }, 2000);
+      
+      const symbol = screenshot.symbol || 'CHART';
+      this.addMessage('ai', `📋 **Screenshot Copied!**
+
+✅ ${symbol} ${timeframe} screenshot copied to clipboard
+
+💡 You can now paste (Ctrl+V) in Discord, Telegram, or any chat platform!`);
+      
+      console.log(`✅ Screenshot copied to clipboard successfully`);
+      
+    } catch (error) {
+      console.error('❌ Failed to copy screenshot to clipboard:', error);
+      
+      // Visual feedback for error
+      const originalText = buttonElement.textContent;
+      const originalTitle = buttonElement.title;
+      
+      buttonElement.textContent = '❌';
+      buttonElement.title = 'Copy failed';
+      buttonElement.style.color = '#dc3545';
+      
+      setTimeout(() => {
+        buttonElement.textContent = originalText;
+        buttonElement.title = originalTitle;
+        buttonElement.style.color = '';
+      }, 2000);
+      
+      // Fallback: suggest manual download
+      this.addMessage('ai', `❌ **Clipboard Copy Failed**
+
+Error: ${error.message}
+
+💡 **Try the download button (📥) instead!** You can save the image and share it manually.
+
+💡 **Alternative:** Most browsers support copying images to clipboard, but it might be disabled.`);
     }
   }
 
@@ -463,7 +729,7 @@ ${Object.keys(this.screenshots).length > 0 ?
         <div class="drag-handle">⋮⋮</div>
         <div class="header-content">
           <h3>🤖 Trading AI</h3>
-          <div class="current-provider-display" id="provider-status">GPT-4o</div>
+          <div class="current-provider-display" id="provider-status">Loading...</div>
         </div>
         <div class="header-controls">
           <button id="settings-btn" class="settings-btn" title="Settings">⚙️</button>
@@ -473,7 +739,7 @@ ${Object.keys(this.screenshots).length > 0 ?
       
       <div class="chat-content" id="chat-content">
         <div class="chat-status" id="chat-status">
-          <span id="status-text">🤖 OpenAI (gpt-4o) - Ready to analyze!</span>
+          <span id="status-text">Loading AI provider...</span>
           <button id="clear-screenshot" class="clear-btn" title="Clear screenshot">×</button>
         </div>
         
@@ -843,6 +1109,7 @@ ${Object.keys(this.screenshots).length > 0 ?
 
     // Chat toggle button - CRITICAL, try multiple approaches
     this.safeAddEventListener('chat-toggle', 'click', () => {
+      console.log('🎯 SAFE LISTENER: Toggle clicked!');
       this.toggleChat();
     });
     
@@ -854,8 +1121,31 @@ ${Object.keys(this.screenshots).length > 0 ?
         console.log('🎯 DIRECT ONCLICK: Toggle clicked!');
         this.toggleChat();
       };
+      
+      // Additional addEventListener for redundancy
+      chatToggle.addEventListener('click', (e) => {
+        console.log('🎯 ADDITIONAL LISTENER: Toggle clicked!');
+        e.preventDefault();
+        e.stopPropagation();
+        this.toggleChat();
+      });
+      
     } else {
       console.error('❌ CRITICAL: chat-toggle button not found for direct listener!');
+      
+      // Emergency fallback - try to find the button with a slight delay
+      setTimeout(() => {
+        const delayedToggle = document.getElementById('chat-toggle');
+        if (delayedToggle) {
+          console.log('🔧 DELAYED: Found chat-toggle button, adding listener');
+          delayedToggle.onclick = () => {
+            console.log('🎯 DELAYED ONCLICK: Toggle clicked!');
+            this.toggleChat();
+          };
+        } else {
+          console.error('❌ EMERGENCY: Still cannot find chat-toggle button after delay!');
+        }
+      }, 100);
     }
 
     // Screenshot button
@@ -942,7 +1232,22 @@ ${Object.keys(this.screenshots).length > 0 ?
       // Add welcome message if this is the first time opening
       const messages = document.getElementById('chat-messages');
       if (messages && messages.children.length === 0) {
-        this.addMessage('ai', '👋 Hey trader! Click ⚙️ to configure your AI provider, then use "📸 Analyze Chart" to get started!');
+        this.addMessage('ai', `👋 **Welcome to Trading AI Assistant!**
+
+🚀 **Quick Setup:** Click ⚙️ → Enter API key → Save → Start analyzing! 📸
+
+📸 **Single Chart:** Click "📸 Analyze Chart" → Get instant AI analysis with auto-detected symbol & timeframe
+
+🔄 **Multi-Timeframe:** Take screenshots on different timeframes → "Compare All Timeframes" for cross-analysis
+
+💬 **Chat:** Ask follow-ups, select text to copy, persistent history across reloads
+
+📤 **Share:** 📥 Download or 📋 Copy screenshots with smart naming (ETHUSD_4h_timestamp.png)
+
+💡 **Pro Tips:** Multiple timeframes give better context • Clear charts for better analysis • Ask specific questions
+
+Ready to analyze? Click **📸 Analyze Chart** to start! 🚀
+Type \`help()\` in console for detailed guide.`);
       }
     }
     
@@ -2031,32 +2336,39 @@ For regular chat responses (not initial analysis), be natural and conversational
       
       this.currentProvider = result.ai_provider || 'openai';
       
-              // Load the model for the current provider and ensure it supports vision
-        if (this.currentProvider === 'openai') {
-          this.currentModel = result.openai_model || 'gpt-4o';
-          // Ensure we're using a vision-capable model
-          if (!this.isVisionCapableModel(this.currentModel, 'openai')) {
-            console.warn(`⚠️ Model ${this.currentModel} may not support vision, switching to gpt-4o`);
-            this.currentModel = 'gpt-4o';
-          }
-        } else if (this.currentProvider === 'grok') {
-          this.currentModel = result.grok_model || 'grok-4';
-          // Ensure we're using a vision-capable model
-          if (!this.isVisionCapableModel(this.currentModel, 'grok')) {
-            console.warn(`⚠️ Model ${this.currentModel} may not support vision, switching to grok-4`);
-            this.currentModel = 'grok-4';
-          }
-        }
+      // Load models for both providers and ensure they support vision
+      const openaiModel = result.openai_model || 'gpt-4o';
+      const grokModel = result.grok_model || 'grok-4';
+      
+      // Ensure we're using vision-capable models
+      if (!this.isVisionCapableModel(openaiModel, 'openai')) {
+        console.warn(`⚠️ Model ${openaiModel} may not support vision, switching to gpt-4o`);
+        this.providerSettings.openai.selectedModel = 'gpt-4o';
+      } else {
+        this.providerSettings.openai.selectedModel = openaiModel;
+      }
+      
+      if (!this.isVisionCapableModel(grokModel, 'grok')) {
+        console.warn(`⚠️ Model ${grokModel} may not support vision, switching to grok-4`);
+        this.providerSettings.grok.selectedModel = 'grok-4';
+      } else {
+        this.providerSettings.grok.selectedModel = grokModel;
+      }
       
       console.log(`🤖 Current AI Provider: ${this.currentProvider}`);
-      console.log(`🎯 Current Model: ${this.currentModel}`);
+      console.log(`🎯 OpenAI Model: ${this.providerSettings.openai.selectedModel}`);
+      console.log(`🎯 Grok Model: ${this.providerSettings.grok.selectedModel}`);
       
-      // Update the provider display in the header
+      // Update the provider display in the header and status
       this.updateProviderDisplay();
+      this.updateChatStatus();
+      
     } catch (error) {
       console.error('Failed to load provider settings:', error);
       this.currentProvider = 'openai'; // Fallback to OpenAI
-      this.currentModel = 'gpt-4o'; // Fallback to best model
+      this.providerSettings.openai.selectedModel = 'gpt-4o'; // Fallback to best model
+      this.updateProviderDisplay();
+      this.updateChatStatus();
     }
   }
 
@@ -2070,15 +2382,17 @@ For regular chat responses (not initial analysis), be natural and conversational
   }
 
   getProviderConfig() {
+    const currentProviderSettings = this.providerSettings[this.currentProvider];
+    
     const configs = {
       openai: {
         endpoint: 'https://api.openai.com/v1/chat/completions',
-        model: this.currentModel,
+        model: currentProviderSettings?.selectedModel || 'gpt-4o',
         name: 'OpenAI'
       },
       grok: {
         endpoint: 'https://api.x.ai/v1/chat/completions',
-        model: this.currentModel,
+        model: currentProviderSettings?.selectedModel || 'grok-4',
         name: 'Grok'
       }
     };
@@ -2274,39 +2588,77 @@ All stored screenshots and conversation history have been cleared from browser m
     console.log('✅ All screenshots cleared from browser memory');
   }
 
-  // Balanced: Optimize image size for good speed while maintaining quality
+  // High Quality: Optimize image size while maintaining excellent detail for chart analysis
   optimizeImageSize(dataUrl) {
     const sizeKB = Math.round(dataUrl.length / 1024);
     console.log(`📸 Original image size: ${sizeKB}KB`);
     
-    // Balanced: Resize to reasonable dimensions for good analysis speed
+    // Get current quality preset
+    const preset = this.qualityPresets[this.currentQuality];
+    console.log(`📸 Using quality preset: ${this.currentQuality} (${preset.maxWidth}x${preset.maxHeight})`);
+    
     return new Promise((resolve) => {
       const img = new Image();
       img.onload = () => {
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
         
-        // Balanced: Reasonable size for good analysis while staying fast
-        const maxWidth = 800;  // Good detail for chart analysis
-        const maxHeight = 600;
-        
         let { width, height } = img;
         
-        if (width > maxWidth || height > maxHeight) {
-          const ratio = Math.min(maxWidth / width, maxHeight / height);
+        // Only resize if image is larger than preset dimensions
+        if (width > preset.maxWidth || height > preset.maxHeight) {
+          const ratio = Math.min(preset.maxWidth / width, preset.maxHeight / height);
           width *= ratio;
           height *= ratio;
+          console.log(`📸 Resizing from ${img.width}x${img.height} to ${Math.round(width)}x${Math.round(height)}`);
+        } else {
+          console.log(`📸 Keeping original size: ${width}x${height} (within ${this.currentQuality} preset limits)`);
         }
         
         canvas.width = width;
         canvas.height = height;
+        
+        // Use high-quality canvas rendering
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
         ctx.drawImage(img, 0, 0, width, height);
         
-        const resizedDataUrl = canvas.toDataURL('image/jpeg', 0.7); // Balanced quality
-        const newSizeKB = Math.round(resizedDataUrl.length / 1024);
-        console.log(`📸 Balanced resize: ${newSizeKB}KB (saved ${sizeKB - newSizeKB}KB)`);
+        // Choose format based on preset
+        let finalDataUrl;
+        let finalFormat;
+        let finalSizeKB;
         
-        resolve(resizedDataUrl);
+        if (preset.format === 'png') {
+          // Use PNG for maximum quality
+          finalDataUrl = canvas.toDataURL('image/png');
+          finalFormat = 'PNG';
+          finalSizeKB = Math.round(finalDataUrl.length / 1024);
+        } else if (preset.format === 'jpeg') {
+          // Use JPEG with specified quality
+          finalDataUrl = canvas.toDataURL('image/jpeg', preset.jpegQuality);
+          finalFormat = `JPEG (${Math.round(preset.jpegQuality * 100)}%)`;
+          finalSizeKB = Math.round(finalDataUrl.length / 1024);
+        } else {
+          // Auto format: try PNG first, fallback to JPEG if too large
+          const pngDataUrl = canvas.toDataURL('image/png');
+          const pngSizeKB = Math.round(pngDataUrl.length / 1024);
+          const maxSizeKB = preset.maxSizeMB * 1024;
+          
+          if (pngSizeKB <= maxSizeKB) {
+            finalDataUrl = pngDataUrl;
+            finalFormat = 'PNG (auto)';
+            finalSizeKB = pngSizeKB;
+          } else {
+            finalDataUrl = canvas.toDataURL('image/jpeg', preset.jpegQuality);
+            finalFormat = `JPEG (auto, ${Math.round(preset.jpegQuality * 100)}%)`;
+            finalSizeKB = Math.round(finalDataUrl.length / 1024);
+          }
+        }
+        
+        console.log(`📸 Final image: ${finalSizeKB}KB ${finalFormat} (was ${sizeKB}KB)`);
+        console.log(`📸 Quality: ${this.currentQuality} preset - Max: ${preset.maxSizeMB}MB`);
+        
+        resolve(finalDataUrl);
       };
       img.src = dataUrl;
     });
@@ -2341,33 +2693,26 @@ All stored screenshots and conversation history have been cleared from browser m
     console.log(`🔄 Switching AI provider from ${this.currentProvider} to ${newProvider}`);
     this.currentProvider = newProvider;
     
-    // Update model if provided, otherwise load from storage
+    // Update model in provider settings if provided
     if (newModel) {
-      this.currentModel = newModel;
-    } else {
-      // Load the model for the new provider
-      try {
-        const result = await chrome.storage.sync.get([`${newProvider}_model`]);
-        this.currentModel = result[`${newProvider}_model`] || 
-          (newProvider === 'openai' ? 'gpt-4o' : 'grok-4');
-      } catch (error) {
-        console.error('Failed to load model for provider:', error);
-        this.currentModel = newProvider === 'openai' ? 'gpt-4o' : 'grok-4';
-      }
+      this.providerSettings[newProvider].selectedModel = newModel;
     }
-    
-    // Update UI to show provider change
-    const providerName = newProvider === 'openai' ? 'OpenAI' : 'Grok (xAI)';
-    const providerIcon = newProvider === 'openai' ? '🧠' : '🚀';
     
     // Update the provider display in the header
     this.updateProviderDisplay();
     
-    this.addMessage('ai', `${providerIcon} **Switched to ${providerName}!**
+    // Update the chat status area
+    this.updateChatStatus();
     
-**Model:** ${this.currentModel}
+    // Get current provider config for display
+    const providerConfig = this.getProviderConfig();
+    const providerIcon = newProvider === 'openai' ? '🤖' : '🚀';
+    
+    this.addMessage('ai', `${providerIcon} **Switched to ${providerConfig.name}!**
+    
+**Model:** ${providerConfig.model}
 
-Hey! I'm now running on ${providerName} with the ${this.currentModel} model. Don't worry - I remember everything we've discussed! 
+Hey! I'm now running on ${providerConfig.name} with the ${providerConfig.model} model. Don't worry - I remember everything we've discussed! 
 
 🧠 **Memory Intact:** All our previous conversations are still here, so we can pick up right where we left off. Let's keep trading! 🚀`);
   }
@@ -2401,57 +2746,63 @@ Hey! I'm now running on ${providerName} with the ${this.currentModel} model. Don
   }
 
   updateChatStatus() {
-    const statusDiv = document.getElementById('chat-status');
     const statusText = document.getElementById('status-text');
-    
-    // Check if status elements exist
-    if (!statusDiv || !statusText) {
-      console.warn('Status elements not found, skipping status update');
-      return;
-    }
+    if (!statusText) return;
     
     const timeframes = Object.keys(this.screenshots);
+    const providerIcon = this.currentProvider === 'openai' ? '🤖' : '🔥';
+    const modelName = this.providerSettings[this.currentProvider].selectedModel;
+    const qualityIcon = this.currentQuality === 'ultra' ? '🔥' : this.currentQuality === 'high' ? '⚡' : this.currentQuality === 'medium' ? '📊' : '🔧';
     
-    if (timeframes.length > 0) {
-      // Check memory usage for status indicator
-      let memoryWarning = '';
-      if (typeof window.performance !== 'undefined' && window.performance.memory) {
-        const memoryInfo = window.performance.memory;
-        const usedMB = memoryInfo.usedJSHeapSize / 1024 / 1024;
-        const limitMB = memoryInfo.jsHeapSizeLimit / 1024 / 1024;
-        
-        if (usedMB > limitMB * 0.7) {
-          memoryWarning = ' ⚠️';
-        }
-      }
-      
-      if (this.isMultiTimeframeMode) {
-        // Multi-timeframe comparison mode
-        const sortedTimeframes = timeframes.sort().join(', ');
-        statusText.textContent = `📊 Comparing ${timeframes.length} timeframes: ${sortedTimeframes}${memoryWarning} - Ask questions!`;
-      } else {
-        // Single timeframe mode
-        const displayTimeframe = this.activeTimeframe || timeframes[0];
-        const screenshot = this.screenshots[displayTimeframe];
-        const minutesAgo = Math.floor((Date.now() - screenshot.timestamp) / (60 * 1000));
-        const timeText = minutesAgo === 0 ? 'just now' : `${minutesAgo}m ago`;
-        
-        const timeframeInfo = timeframes.length > 1 ? ` (${timeframes.length} stored)` : '';
-        statusText.textContent = `📸 ${displayTimeframe} loaded ${timeText}${memoryWarning}${timeframeInfo} - Ask questions!`;
-      }
-      
-      statusDiv.style.display = 'flex';
-      
-      // Change color if memory warning
-      if (memoryWarning) {
-        statusDiv.style.borderColor = 'rgba(255, 107, 53, 0.5)';
-        statusDiv.style.background = 'rgba(255, 107, 53, 0.1)';
-      } else {
-        statusDiv.style.borderColor = 'rgba(0, 212, 255, 0.3)';
-        statusDiv.style.background = 'rgba(0, 212, 255, 0.1)';
-      }
+    if (timeframes.length === 0) {
+      statusText.innerHTML = `${providerIcon} ${this.currentProvider.toUpperCase()} (${modelName}) - ${qualityIcon} ${this.currentQuality} quality - Ready!`;
+      console.log(`📊 Status updated: ${this.currentProvider.toUpperCase()} (${modelName}) - Ready!`);
+    } else if (this.isMultiTimeframeMode) {
+      statusText.innerHTML = `${providerIcon} Compare Mode: ${timeframes.length} timeframes - ${qualityIcon} ${this.currentQuality} quality`;
+      console.log(`📊 Status updated: ${this.currentProvider.toUpperCase()} (${modelName}) - Compare Mode`);
+    } else if (this.activeTimeframe) {
+      const conversation = this.screenshots[this.activeTimeframe].conversation;
+      const exchanges = Math.floor(conversation.length / 2);
+      statusText.innerHTML = `${providerIcon} ${this.activeTimeframe} timeframe - ${exchanges} exchanges - ${qualityIcon} ${this.currentQuality} quality`;
+      console.log(`📊 Status updated: ${this.currentProvider.toUpperCase()} (${modelName}) - ${this.activeTimeframe} active`);
     } else {
-      statusDiv.style.display = 'none';
+      statusText.innerHTML = `${providerIcon} ${timeframes.length} timeframes stored - ${qualityIcon} ${this.currentQuality} quality`;
+      console.log(`📊 Status updated: ${this.currentProvider.toUpperCase()} (${modelName}) - ${timeframes.length} timeframes`);
+    }
+  }
+
+  // Method to change image quality preset
+  setImageQuality(qualityLevel) {
+    if (this.qualityPresets[qualityLevel]) {
+      const oldQuality = this.currentQuality;
+      this.currentQuality = qualityLevel;
+      console.log(`📸 Image quality changed from ${oldQuality} to ${qualityLevel}`);
+      
+      // Update UI to show new quality
+      this.updateChatStatus();
+      
+      // Show quality change message
+      const preset = this.qualityPresets[qualityLevel];
+      this.addMessage('ai', `📸 **Quality Changed to ${qualityLevel.toUpperCase()}**
+
+**Settings:**
+- Resolution: ${preset.maxWidth} x ${preset.maxHeight}
+- Format: ${preset.format.toUpperCase()}
+- Max Size: ${preset.maxSizeMB}MB
+${preset.jpegQuality ? `- JPEG Quality: ${Math.round(preset.jpegQuality * 100)}%` : ''}
+
+💡 **Tip:** Type \`setQuality('ultra')\` for maximum quality, or \`setQuality('medium')\` for faster uploads.`);
+    } else {
+      console.error(`❌ Invalid quality level: ${qualityLevel}`);
+      this.addMessage('ai', `❌ **Invalid Quality Level**
+
+Available quality levels:
+- **ultra**: 2560x1440, PNG, up to 5MB
+- **high**: 1920x1080, PNG, up to 2MB (current)
+- **medium**: 1280x720, auto format, up to 1MB  
+- **low**: 800x600, JPEG, up to 0.5MB
+
+Usage: Type \`setQuality('high')\` to change quality.`);
     }
   }
 
@@ -2819,11 +3170,12 @@ Hey! I'm now running on ${providerName} with the ${this.currentModel} model. Don
 
       // Update current instance to match the saved settings
       this.currentProvider = activeProvider;
-      this.currentModel = activeProvider === 'openai' ? openaiModel : grokModel;
+      this.providerSettings[activeProvider].selectedModel = activeProvider === 'openai' ? openaiModel : grokModel;
       
-      console.log(`🔧 Updated instance: ${this.currentProvider} with model ${this.currentModel}`);
+      console.log(`🔧 Updated instance: ${this.currentProvider} with model ${this.providerSettings[activeProvider].selectedModel}`);
 
       this.updateProviderDisplay();
+      this.updateChatStatus();  // Update status area with new provider
       this.showSettingsStatus('Settings saved successfully!', 'success');
       
       // Add a message to chat about the change
@@ -3042,9 +3394,23 @@ Hey! I'm now running on ${providerName} with the ${this.currentModel} model. Don
     const providerElement = document.getElementById('provider-status');
     
     if (providerElement && providerConfig) {
-      const icon = this.currentProvider === 'openai' ? '🧠' : '🚀';
-      providerElement.textContent = `${icon} ${providerConfig.model}`;
-      providerElement.title = `Using ${providerConfig.name} (${providerConfig.model})`;
+      // Better icons and formatting for each provider
+      const icons = {
+        openai: '🤖',
+        grok: '🚀'
+      };
+      
+      const icon = icons[this.currentProvider] || '🤖';
+      const displayName = providerConfig.name;
+      const modelName = providerConfig.model;
+      
+      // Show provider and model clearly
+      providerElement.textContent = `${icon} ${modelName}`;
+      providerElement.title = `Active AI: ${displayName} (${modelName})`;
+      
+      console.log(`🔄 Provider display updated: ${displayName} ${modelName}`);
+    } else {
+      console.warn('❌ Could not update provider display - element or config missing');
     }
   }
 

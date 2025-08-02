@@ -775,6 +775,16 @@
   background: rgba(0, 212, 255, 0.1);
 }
 
+.gallery-item-btn.download:hover {
+  color: #28a745;
+  background: rgba(40, 167, 69, 0.1);
+}
+
+.gallery-item-btn.copy:hover {
+  color: #6f42c1;
+  background: rgba(111, 66, 193, 0.1);
+}
+
 .gallery-collapsed .gallery-content {
   display: none;
 }

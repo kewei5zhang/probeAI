@@ -33,12 +33,11 @@ class TradingAIAssistant {
     this.maxTimeframes = 4;
     this.isInitialized = false;
     
-    // Image quality presets
+    // Image quality presets (realistic sizes for TradingView charts)
     this.qualityPresets = {
-      'ultra': { maxWidth: 2560, maxHeight: 1440, format: 'png', jpegQuality: 0.98, maxSizeMB: 5 },
-      'high': { maxWidth: 1920, maxHeight: 1080, format: 'png', jpegQuality: 0.95, maxSizeMB: 2 },  // Default
-      'medium': { maxWidth: 1280, maxHeight: 720, format: 'auto', jpegQuality: 0.85, maxSizeMB: 1 },
-      'low': { maxWidth: 800, maxHeight: 600, format: 'jpeg', jpegQuality: 0.7, maxSizeMB: 0.5 }
+      'ultra': { maxWidth: 2560, maxHeight: 1440, format: 'png', jpegQuality: 0.98, maxSizeMB: 1.0, maxSizeKB: 1000 },
+      'high': { maxWidth: 1920, maxHeight: 1080, format: 'png', jpegQuality: 0.95, maxSizeMB: 0.8, maxSizeKB: 800 },  // Default
+      'medium': { maxWidth: 1280, maxHeight: 720, format: 'auto', jpegQuality: 0.85, maxSizeMB: 0.5, maxSizeKB: 500 }
     };
     this.currentQuality = 'high'; // Default to high quality
     
@@ -166,8 +165,6 @@ class TradingAIAssistant {
 - 📋 Copy button → Paste in Discord/Telegram
 
 **🎛️ Console Commands:**
-- \`setQuality('ultra')\` → Maximum screenshot quality
-- \`switchProvider('grok')\` → Switch AI provider
 - \`showStatus()\` → Show current settings
 - \`help()\` → Show this help again
 
@@ -791,7 +788,7 @@ Error: ${error.message}
     settingsModal.innerHTML = `
       <div class="settings-modal-content">
         <div class="settings-header">
-          <h2>⚙️ AI Provider Settings</h2>
+          <h2>⚙️ Settings</h2>
           <button id="close-settings" class="close-settings">✕</button>
         </div>
         
@@ -866,6 +863,37 @@ Error: ${error.message}
                   </div>
                   <div class="key-status" id="grok-status"></div>
                 </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="screenshot-settings-section">
+            <h3>📸 Screenshot Quality</h3>
+            <div class="quality-config">
+              <div class="quality-selection">
+                <label class="quality-label">Quality Level:</label>
+                <select id="quality-select">
+                  <option value="ultra">🔥 Ultra (up to 1MB, 2560x1440)</option>
+                  <option value="high">⚡ High (up to 800KB, 1920x1080) - Default</option>
+                  <option value="medium">📊 Medium (up to 500KB, 1280x720)</option>
+                </select>
+              </div>
+              
+              <div class="quality-info" id="quality-info">
+                <div class="quality-preview">
+                  <strong>Current Quality: </strong><span id="current-quality-display">High</span>
+                  <div class="quality-details" id="quality-details">
+                    Resolution: 1920x1080 • Format: PNG • Up to: 800KB
+                  </div>
+                </div>
+              </div>
+              
+              <div class="quality-description">
+                <p style="font-size: 12px; color: #888; margin: 8px 0;">
+                  💡 <strong>Ultra:</strong> Best quality (up to 1MB) - Maximum detail for complex charts<br>
+                  ⚡ <strong>High:</strong> Great balance (up to 800KB) - Recommended for most use<br>
+                  📊 <strong>Medium:</strong> Good quality (up to 500KB) - Faster uploads
+                </p>
               </div>
             </div>
           </div>
@@ -1247,7 +1275,8 @@ Error: ${error.message}
 💡 **Pro Tips:** Multiple timeframes give better context • Clear charts for better analysis • Ask specific questions
 
 Ready to analyze? Click **📸 Analyze Chart** to start! 🚀
-Type \`help()\` in console for detailed guide.`);
+
+💬 **Try these commands anytime:** Type "help", "status", or "commands" in the chat!`);
       }
     }
     
@@ -1932,9 +1961,61 @@ For regular chat responses (not initial analysis), be natural and conversational
     
     if (!message) return;
 
+    // Handle special commands that don't require screenshots
+    const lowerMessage = message.toLowerCase();
+    if (lowerMessage === 'help' || lowerMessage === '/help') {
+      this.addMessage('ai', `🔧 **Quick Reference Commands:**
+
+**📸 Screenshot Analysis:**
+- Click "📸 Analyze Chart" for single analysis
+- Take multiple screenshots → "Compare All Timeframes"
+
+**📤 Share Screenshots:**
+- 📥 Download button → Save as PNG
+- 📋 Copy button → Paste in Discord/Telegram
+
+**💬 Chat Tips:**
+- Ask follow-up questions about screenshots
+- Select text with mouse → Ctrl+C to copy
+- Type "help" for this guide anytime
+
+**🎯 Pro Usage:**
+- Use multiple timeframes (1h + 4h + 1d) for context
+- Clear charts before screenshots for better analysis
+- Screenshots auto-detect symbol and timeframe
+
+Ready to analyze? Click **📸 Analyze Chart** to start! 🚀`);
+      input.value = '';
+      return;
+    }
+
+    // Handle other useful commands
+    if (lowerMessage === 'status') {
+      const providerConfig = this.getProviderConfig();
+      this.addMessage('ai', `📊 **Current Status:**
+- **Provider:** ${this.currentProvider} (${providerConfig.name})
+- **Model:** ${providerConfig.model}
+- **Quality:** ${this.currentQuality}
+- **Screenshots:** ${Object.keys(this.screenshots).length}/4 stored`);
+      input.value = '';
+      return;
+    }
+
+    if (lowerMessage === 'commands' || lowerMessage === '/commands') {
+      this.addMessage('ai', `🎛️ **Available Chat Commands:**
+- **help** - Show complete usage guide
+- **status** - Show current AI provider and settings
+- **commands** - Show this list
+
+💬 After taking a screenshot, you can ask questions about the chart!`);
+      input.value = '';
+      return;
+    }
+
     // Check if we have any screenshots to discuss
     if (Object.keys(this.screenshots).length === 0) {
-      this.addMessage('ai', '📸 Please take a screenshot first by clicking "Analyze Chart" button.');
+      this.addMessage('ai', '📸 Please take a screenshot first by clicking "Analyze Chart" button.\n\n💡 **Tip:** Type "help" for usage guide anytime!');
+      input.value = '';
       return;
     }
 
@@ -2331,10 +2412,15 @@ For regular chat responses (not initial analysis), be natural and conversational
       const result = await chrome.storage.sync.get([
         'ai_provider', 
         'openai_model', 
-        'grok_model'
+        'grok_model',
+        'screenshot_quality'
       ]);
       
       this.currentProvider = result.ai_provider || 'openai';
+      
+      // Load screenshot quality setting
+      this.currentQuality = result.screenshot_quality || 'high';
+      console.log(`📸 Screenshot Quality: ${this.currentQuality}`);
       
       // Load models for both providers and ensure they support vision
       const openaiModel = result.openai_model || 'gpt-4o';
@@ -2791,18 +2877,17 @@ Hey! I'm now running on ${providerConfig.name} with the ${providerConfig.model} 
 - Max Size: ${preset.maxSizeMB}MB
 ${preset.jpegQuality ? `- JPEG Quality: ${Math.round(preset.jpegQuality * 100)}%` : ''}
 
-💡 **Tip:** Type \`setQuality('ultra')\` for maximum quality, or \`setQuality('medium')\` for faster uploads.`);
+💡 **Next screenshots will use this quality level.**`);
     } else {
       console.error(`❌ Invalid quality level: ${qualityLevel}`);
       this.addMessage('ai', `❌ **Invalid Quality Level**
 
 Available quality levels:
-- **ultra**: 2560x1440, PNG, up to 5MB
-- **high**: 1920x1080, PNG, up to 2MB (current)
-- **medium**: 1280x720, auto format, up to 1MB  
-- **low**: 800x600, JPEG, up to 0.5MB
+- **ultra**: 2560x1440, PNG, up to 1MB
+- **high**: 1920x1080, PNG, up to 800KB (current)
+- **medium**: 1280x720, auto format, up to 500KB
 
-Usage: Type \`setQuality('high')\` to change quality.`);
+Use the settings menu to change quality.`);
     }
   }
 
@@ -2963,6 +3048,11 @@ Usage: Type \`setQuality('high')\` to change quality.`);
       this.handleActiveProviderChange(e.target.value);
     });
 
+    // Quality selection
+    this.safeAddEventListener('quality-select', 'change', (e) => {
+      this.handleQualityChange(e.target.value);
+    });
+
     // Close modal when clicking outside
     document.addEventListener('click', (e) => {
       const modal = document.getElementById('settings-modal');
@@ -2976,7 +3066,8 @@ Usage: Type \`setQuality('high')\` to change quality.`);
     try {
       const settings = await chrome.storage.sync.get([
         'ai_provider', 'openai_api_key', 'grok_api_key',
-        'openai_model', 'grok_model', 'openai_enabled', 'grok_enabled'
+        'openai_model', 'grok_model', 'openai_enabled', 'grok_enabled',
+        'screenshot_quality'
       ]);
 
       // Set active provider - ensure it matches the currently enabled provider
@@ -3016,6 +3107,17 @@ Usage: Type \`setQuality('high')\` to change quality.`);
       if (grokModel) grokModel.value = settings.grok_model || 'grok-4';
       if (grokKey && settings.grok_api_key) {
         grokKey.value = settings.grok_api_key;
+      }
+
+      // Set screenshot quality settings
+      const qualitySelect = document.getElementById('quality-select');
+      const savedQuality = settings.screenshot_quality || this.currentQuality;
+      
+      if (qualitySelect) {
+        qualitySelect.value = savedQuality;
+        this.currentQuality = savedQuality;
+        this.updateQualityPreview(savedQuality);
+        console.log(`📸 Quality loaded: ${savedQuality}`);
       }
 
       // Update provider sections based on enabled state
@@ -3129,6 +3231,34 @@ Usage: Type \`setQuality('high')\` to change quality.`);
     this.updateProviderDisplay(newProvider);
   }
 
+  handleQualityChange(qualityLevel) {
+    // Update current quality
+    this.currentQuality = qualityLevel;
+    
+    // Update the preview display
+    this.updateQualityPreview(qualityLevel);
+    
+    // Update chat status to reflect the change
+    this.updateChatStatus();
+    
+    console.log(`📸 Quality changed to ${qualityLevel} in settings`);
+  }
+
+  updateQualityPreview(qualityLevel) {
+    const preset = this.qualityPresets[qualityLevel];
+    const displayElement = document.getElementById('current-quality-display');
+    const detailsElement = document.getElementById('quality-details');
+    
+    if (displayElement) {
+      displayElement.textContent = qualityLevel.charAt(0).toUpperCase() + qualityLevel.slice(1);
+    }
+    
+    if (detailsElement && preset) {
+      const jpegInfo = preset.jpegQuality ? ` • JPEG Quality: ${Math.round(preset.jpegQuality * 100)}%` : '';
+      detailsElement.textContent = `Resolution: ${preset.maxWidth}x${preset.maxHeight} • Format: ${preset.format.toUpperCase()} • Up to: ${preset.maxSizeKB}KB${jpegInfo}`;
+    }
+  }
+
   async saveSettingsFromModal() {
     try {
       const activeProvider = document.getElementById('active-provider-select')?.value;
@@ -3138,6 +3268,7 @@ Usage: Type \`setQuality('high')\` to change quality.`);
       const grokModel = document.getElementById('grok-model-select')?.value;
       const openaiKey = document.getElementById('openai-api-key')?.value;
       const grokKey = document.getElementById('grok-api-key')?.value;
+      const selectedQuality = document.getElementById('quality-select')?.value;
 
       // Validation: Check if the active provider has an API key
       if (activeProvider === 'openai' && (!openaiKey || !openaiKey.trim())) {
@@ -3155,7 +3286,8 @@ Usage: Type \`setQuality('high')\` to change quality.`);
         openai_enabled: openaiEnabled,
         grok_enabled: grokEnabled,
         openai_model: openaiModel,
-        grok_model: grokModel
+        grok_model: grokModel,
+        screenshot_quality: selectedQuality || this.currentQuality
       };
 
       // Only save keys if they're provided
@@ -3168,19 +3300,36 @@ Usage: Type \`setQuality('high')\` to change quality.`);
 
       await chrome.storage.sync.set(settings);
 
+      // Store old quality before updating
+      const oldQuality = this.currentQuality;
+      
       // Update current instance to match the saved settings
       this.currentProvider = activeProvider;
       this.providerSettings[activeProvider].selectedModel = activeProvider === 'openai' ? openaiModel : grokModel;
+      if (selectedQuality) {
+        this.currentQuality = selectedQuality;
+      }
       
       console.log(`🔧 Updated instance: ${this.currentProvider} with model ${this.providerSettings[activeProvider].selectedModel}`);
 
       this.updateProviderDisplay();
       this.updateChatStatus();  // Update status area with new provider
-      this.showSettingsStatus('Settings saved successfully!', 'success');
       
-      // Add a message to chat about the change
-      const providerConfig = this.getProviderConfig();
-      this.addMessage('ai', `🔄 Switched to ${providerConfig.name} (${providerConfig.model}). I'm ready to analyze your charts! 🚀`);
+      // Show success message in settings modal
+      this.showSettingsStatus('✅ Settings saved successfully!', 'success');
+      
+      // Only add chat message if quality was changed to inform user
+      if (selectedQuality && selectedQuality !== oldQuality) {
+        const preset = this.qualityPresets[selectedQuality];
+        this.addMessage('ai', `📸 **Screenshot Quality Updated**
+
+**New Quality:** ${selectedQuality.toUpperCase()}
+**Resolution:** ${preset.maxWidth} x ${preset.maxHeight}
+**Format:** ${preset.format.toUpperCase()}
+**File Size:** Up to ${preset.maxSizeKB}KB
+
+Next screenshots will use this quality level! 🚀`);
+      }
       
       console.log(`✅ Settings saved successfully. Active provider: ${activeProvider}`);
 

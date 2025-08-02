@@ -15,7 +15,7 @@
 - **Auto-detects timeframe** (1h, 4h, 1d, etc.) from TradingView interface
 - **Smart symbol focus** - Ignores watchlists and side panels
 - **High-quality capture** - PNG format up to 1920x1080 resolution
-- **Quality presets** - Ultra, High, Medium, Low (adjustable via console)
+- **Quality presets** - Ultra, High, Medium (adjustable via settings)
 - **No manual configuration** - just click and analyze!
 
 ### 📊 **Multi-Timeframe Analysis**
@@ -156,7 +156,7 @@
 ### High-Quality Image System
 - **PNG capture** - Lossless format preserves chart detail perfectly
 - **Full HD resolution** - Up to 1920x1080 for crystal-clear analysis
-- **Quality presets** - Ultra (2560x1440), High (1920x1080), Medium (1280x720), Low (800x600)
+- **Quality presets** - Ultra (2560x1440), High (1920x1080), Medium (1280x720)
 - **Smart format selection** - Auto-chooses PNG vs JPEG based on file size
 - **Console control** - `setQuality('ultra')` for maximum quality
 - **Real-time switching** - Change quality without reloading extension
@@ -245,7 +245,7 @@
 - ✅ **Screenshot download & copy** - share screenshots anywhere
 - ✅ **Smart file naming** - SYMBOL_TIMEFRAME_TIMESTAMP.png format
 - ✅ **High-quality screenshots** - PNG format up to 1920x1080 resolution
-- ✅ **Quality presets** - Ultra, High, Medium, Low with console control
+- ✅ **Quality presets** - Ultra, High, Medium with settings control
 - ✅ **Dynamic status display** - Header and status area show active AI provider/model
 - ✅ **Console controls** - Switch providers and quality with simple commands
 - ✅ **Comprehensive help system** - Detailed welcome guide and `help()` command

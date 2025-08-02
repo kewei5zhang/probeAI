@@ -1294,6 +1294,88 @@
   font-weight: 500;
 }
 
+/* Screenshot Settings Section */
+.screenshot-settings-section {
+  margin-top: 24px;
+  padding: 20px;
+  background: rgba(0, 212, 255, 0.05);
+  border: 1px solid rgba(0, 212, 255, 0.2);
+  border-radius: 12px;
+}
+
+.screenshot-settings-section h3 {
+  margin: 0 0 16px 0;
+  color: #00d4ff;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.quality-config {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.quality-selection {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.quality-label {
+  color: #ccc;
+  font-size: 14px;
+  min-width: 80px;
+}
+
+.quality-selection select {
+  flex: 1;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid #444;
+  border-radius: 6px;
+  color: #fff;
+  font-size: 14px;
+}
+
+.quality-selection select:focus {
+  outline: none;
+  border-color: #00d4ff;
+  box-shadow: 0 0 0 2px rgba(0, 212, 255, 0.2);
+}
+
+.quality-info {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.quality-preview {
+  color: #fff;
+  font-size: 14px;
+}
+
+.quality-details {
+  color: #888;
+  font-size: 12px;
+  margin-top: 4px;
+  font-family: monospace;
+}
+
+.quality-description {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 6px;
+  padding: 12px;
+}
+
+.quality-description p {
+  margin: 0;
+  line-height: 1.4;
+}
+
 /* Responsive adjustments */
 @media (max-width: 600px) {
   .settings-modal-content {

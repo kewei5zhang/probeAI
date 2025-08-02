@@ -33,6 +33,11 @@ class TradingAIAssistant {
     this.maxTimeframes = 4;
     this.isInitialized = false;
     
+    // Memory management limits
+    this.maxChatMessages = 50; // Maximum messages to keep (simple limit)
+    this.maxConversationHistory = 20; // Limit conversation pairs for memory efficiency
+    this.messageCount = 0;
+    
     // Image quality presets (realistic sizes for TradingView charts)
     this.qualityPresets = {
       'ultra': { maxWidth: 2560, maxHeight: 1440, format: 'png', jpegQuality: 0.98, maxSizeMB: 1.0, maxSizeKB: 1000 },
@@ -77,6 +82,14 @@ class TradingAIAssistant {
       
       this.setupEventListeners();
       console.log('✅ Event listeners set up');
+      
+      // Load persistent chat history
+      await this.loadChatHistory();
+      console.log('✅ Chat history loaded');
+      
+      // Load persistent screenshots
+      await this.loadScreenshots();
+      console.log('✅ Screenshots loaded');
       
       // Verify button setup to ensure toggle works
       this.verifyButtonSetup();
@@ -387,6 +400,9 @@ Now analyzing ALL stored timeframes simultaneously: **${timeframeList}**
       this.updateGallery();
       this.updateChatStatus();
       
+      // Save screenshots to storage after deletion
+      this.saveScreenshots();
+      
       this.addMessage('ai', `🗑️ **${timeframe} screenshot deleted!**
 
 Screenshot and conversation history for ${timeframe} timeframe has been removed.
@@ -595,6 +611,9 @@ Error: ${error.message}
         }
         
         this.updateGallery();
+        
+        // Save screenshots to storage after removing oldest
+        this.saveScreenshots();
       }
     } else if (newTimeframe && this.screenshots[newTimeframe]) {
       console.log(`🔄 REPLACING existing ${newTimeframe} screenshot - no cleanup needed`);
@@ -737,7 +756,10 @@ Error: ${error.message}
       <div class="chat-content" id="chat-content">
         <div class="chat-status" id="chat-status">
           <span id="status-text">Loading AI provider...</span>
-          <button id="clear-screenshot" class="clear-btn" title="Clear screenshot">×</button>
+          <div class="status-buttons">
+            <button id="clear-history" class="clear-btn" title="Clear chat history">🗑️</button>
+            <button id="clear-screenshot" class="clear-btn" title="Clear screenshot">×</button>
+          </div>
         </div>
         
         <div class="chat-messages" id="chat-messages"></div>
@@ -1202,6 +1224,13 @@ Error: ${error.message}
       this.clearScreenshot();
     });
 
+    // Clear chat history button
+    this.safeAddEventListener('clear-history', 'click', () => {
+      if (confirm('Clear all chat history? This cannot be undone.')) {
+        this.clearChatHistory();
+      }
+    });
+
     // Gallery toggle
     this.safeAddEventListener('gallery-toggle', 'click', () => {
       this.toggleGallery();
@@ -1276,7 +1305,9 @@ Error: ${error.message}
 
 Ready to analyze? Click **📸 Analyze Chart** to start! 🚀
 
-💬 **Try these commands anytime:** Type "help", "status", or "commands" in the chat!`);
+💬 **Try these commands anytime:** Type "help", "status", "memory", or "commands" in the chat!
+
+💾 **Auto-Management:** 50 message limit with automatic cleanup - just chat and analyze! 🚀`);
       }
     }
     
@@ -1547,6 +1578,9 @@ Ready to analyze? Click **📸 Analyze Chart** to start! 🚀
         };
         
         console.log(`✅ Screenshot stored for ${timeframe} (${symbol || 'unknown symbol'}). New count: ${Object.keys(this.screenshots).length}`);
+        
+        // Save screenshots to storage
+        this.saveScreenshots();
         
         // Verify final state
         const finalTimeframes = Object.keys(this.screenshots);
@@ -1977,7 +2011,9 @@ For regular chat responses (not initial analysis), be natural and conversational
 **💬 Chat Tips:**
 - Ask follow-up questions about screenshots
 - Select text with mouse → Ctrl+C to copy
-- Type "help" for this guide anytime
+- **Persistent history** → Chat survives page reloads (24 hours)
+- Click 🗑️ button to clear chat history anytime
+- Type "memory" to check current usage (50 messages max)
 
 **🎯 Pro Usage:**
 - Use multiple timeframes (1h + 4h + 1d) for context
@@ -1992,11 +2028,37 @@ Ready to analyze? Click **📸 Analyze Chart** to start! 🚀`);
     // Handle other useful commands
     if (lowerMessage === 'status') {
       const providerConfig = this.getProviderConfig();
+      const messagesContainer = document.getElementById('chat-messages');
+      const messageCount = messagesContainer ? messagesContainer.querySelectorAll('.ai-message, .user-message').length : 0;
+      
       this.addMessage('ai', `📊 **Current Status:**
 - **Provider:** ${this.currentProvider} (${providerConfig.name})
 - **Model:** ${providerConfig.model}
 - **Quality:** ${this.currentQuality}
-- **Screenshots:** ${Object.keys(this.screenshots).length}/4 stored`);
+- **Screenshots:** ${Object.keys(this.screenshots).length}/4 stored
+- **Messages:** ${messageCount}/${this.maxChatMessages} (auto-cleanup at limit)`);
+      input.value = '';
+      return;
+    }
+
+    if (lowerMessage === 'memory') {
+      const messagesContainer = document.getElementById('chat-messages');
+      const messageCount = messagesContainer ? messagesContainer.querySelectorAll('.ai-message, .user-message').length : 0;
+      
+      this.addMessage('ai', `🧠 **Memory Status:**
+
+📊 **Current Usage:**
+- **Messages:** ${messageCount}/${this.maxChatMessages} stored
+- **Screenshots:** ${Object.keys(this.screenshots).length}/4 timeframes stored
+
+⚙️ **Auto-Management:**
+- When messages exceed 50, oldest messages are automatically removed
+- Screenshot limit is 4 timeframes (removes oldest when adding 5th)
+- Persistent storage survives page reloads (24 hours)
+
+✅ **Simple & Efficient** - No complex cleanup needed with these limits!
+
+💡 **Manual Control:** Click 🗑️ button to clear everything anytime.`);
       input.value = '';
       return;
     }
@@ -2005,6 +2067,7 @@ Ready to analyze? Click **📸 Analyze Chart** to start! 🚀`);
       this.addMessage('ai', `🎛️ **Available Chat Commands:**
 - **help** - Show complete usage guide
 - **status** - Show current AI provider and settings
+- **memory** - Show detailed storage usage analysis
 - **commands** - Show this list
 
 💬 After taking a screenshot, you can ask questions about the chart!`);
@@ -2117,6 +2180,253 @@ Ready to analyze? Click **📸 Analyze Chart** to start! 🚀`);
     }
   }
 
+  // Chat history persistence functions
+  async saveChatHistory() {
+    try {
+      const messagesContainer = document.getElementById('chat-messages');
+      if (!messagesContainer) return;
+
+      const messages = [];
+      const messageElements = messagesContainer.querySelectorAll('.ai-message, .user-message');
+      
+      // Only save recent messages based on current limit
+      const recentMessages = Array.from(messageElements).slice(-this.maxChatMessages);
+      
+      recentMessages.forEach(msgElement => {
+        const isAI = msgElement.classList.contains('ai-message');
+        const contentElement = msgElement.querySelector('.message-content');
+        const timeElement = msgElement.querySelector('.message-time');
+        
+        if (contentElement) {
+          // For AI messages, try to get original content with formatting, fallback to innerHTML for structured content
+          let content;
+          if (isAI) {
+            // Check if element has original content stored, otherwise use innerHTML to preserve structure
+            content = contentElement.dataset.originalContent || contentElement.innerHTML;
+          } else {
+            content = contentElement.textContent || contentElement.innerText;
+          }
+          
+
+          
+          messages.push({
+            type: isAI ? 'ai' : 'user',
+            content: content,
+            timestamp: timeElement ? timeElement.textContent : new Date().toLocaleTimeString(),
+            isFormatted: isAI && !!contentElement.dataset.originalContent
+          });
+        }
+      });
+
+      await chrome.storage.local.set({
+        'chat_history': messages,
+        'chat_history_timestamp': Date.now()
+      });
+      
+      console.log(`💾 Saved ${messages.length} messages to chat history (max: ${this.maxChatMessages})`);
+    } catch (error) {
+      console.error('❌ Failed to save chat history:', error);
+    }
+  }
+
+  async loadChatHistory() {
+    try {
+      const result = await chrome.storage.local.get(['chat_history', 'chat_history_timestamp']);
+      
+      if (!result.chat_history || result.chat_history.length === 0) {
+        console.log('📝 No chat history found, starting fresh');
+        return;
+      }
+
+      // Check if history is recent (within last 24 hours)
+      const historyAge = Date.now() - (result.chat_history_timestamp || 0);
+      const maxAge = 24 * 60 * 60 * 1000; // 24 hours
+      
+      if (historyAge > maxAge) {
+        console.log('🗑️ Chat history expired, starting fresh');
+        await this.clearStoredChatHistory();
+        return;
+      }
+
+      const messagesContainer = document.getElementById('chat-messages');
+      if (!messagesContainer) return;
+
+      // Add history separator
+      this.addHistorySeparator();
+
+      // Restore messages
+      for (const msg of result.chat_history) {
+        this.restoreMessageToDOM(msg);
+      }
+
+      console.log(`📖 Restored ${result.chat_history.length} messages from chat history`);
+      
+      // Scroll to bottom
+      messagesContainer.scrollTop = messagesContainer.scrollHeight;
+      
+    } catch (error) {
+      console.error('❌ Failed to load chat history:', error);
+    }
+  }
+
+  addHistorySeparator() {
+    const messagesContainer = document.getElementById('chat-messages');
+    if (!messagesContainer) return;
+
+    const separator = document.createElement('div');
+    separator.className = 'history-separator';
+    separator.innerHTML = `
+      <div class="separator-line"></div>
+      <div class="separator-text">📖 Previous Session</div>
+      <div class="separator-line"></div>
+    `;
+    
+    messagesContainer.appendChild(separator);
+  }
+
+  restoreMessageToDOM(msg) {
+    const messagesContainer = document.getElementById('chat-messages');
+    if (!messagesContainer) return;
+
+    const { type, content, timestamp, isFormatted } = msg;
+    
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `${type}-message restored-message`;
+    
+    const contentDiv = document.createElement('div');
+    contentDiv.className = 'message-content';
+    
+    // Handle AI content restoration
+    if (type === 'ai') {
+      if (isFormatted) {
+        // Original formatted content - reformat it
+        contentDiv.innerHTML = this.formatAIResponse(content);
+        contentDiv.dataset.originalContent = content;
+      } else {
+        // Already formatted HTML content - use as is
+        contentDiv.innerHTML = content;
+      }
+    } else {
+      contentDiv.textContent = content;
+    }
+    
+    const timeDiv = document.createElement('div');
+    timeDiv.className = 'message-time';
+    timeDiv.textContent = timestamp;
+    
+    messageDiv.appendChild(contentDiv);
+    messageDiv.appendChild(timeDiv);
+    
+    // Add copy button for AI messages
+    if (type === 'ai') {
+      const copyBtn = document.createElement('button');
+      copyBtn.className = 'copy-btn';
+      copyBtn.title = 'Copy message';
+      copyBtn.textContent = '📋';
+      copyBtn.style.cssText = 'position: absolute; top: 6px; right: 6px;';
+      messageDiv.appendChild(copyBtn);
+      
+      // Use original content for copying if available, otherwise use the content
+      const copyContent = isFormatted ? content : (contentDiv.dataset.originalContent || content);
+      this.setupCopyButton(copyBtn, copyContent);
+    }
+    
+    messageDiv.style.position = 'relative';
+    messageDiv.style.overflow = 'visible';
+    
+    messagesContainer.appendChild(messageDiv);
+  }
+
+  async clearStoredChatHistory() {
+    try {
+      await chrome.storage.local.remove(['chat_history', 'chat_history_timestamp']);
+      console.log('🗑️ Chat history cleared from storage');
+    } catch (error) {
+      console.error('❌ Failed to clear chat history:', error);
+    }
+  }
+
+  // Screenshot persistence functions
+  async saveScreenshots() {
+    try {
+      if (Object.keys(this.screenshots).length === 0) {
+        await chrome.storage.local.remove(['screenshots', 'screenshots_timestamp']);
+        return;
+      }
+
+      await chrome.storage.local.set({
+        'screenshots': this.screenshots,
+        'screenshots_timestamp': Date.now(),
+        'activeTimeframe': this.activeTimeframe
+      });
+      
+      console.log(`💾 Saved ${Object.keys(this.screenshots).length} screenshots to storage (max: 4)`);
+    } catch (error) {
+      console.error('❌ Failed to save screenshots:', error);
+    }
+  }
+
+  async loadScreenshots() {
+    try {
+      const result = await chrome.storage.local.get(['screenshots', 'screenshots_timestamp', 'activeTimeframe']);
+      
+      if (!result.screenshots || Object.keys(result.screenshots).length === 0) {
+        console.log('📸 No screenshots found, starting fresh');
+        return;
+      }
+
+      // Check if screenshots are recent (within last 24 hours)
+      const screenshotsAge = Date.now() - (result.screenshots_timestamp || 0);
+      const maxAge = 24 * 60 * 60 * 1000; // 24 hours
+      
+      if (screenshotsAge > maxAge) {
+        console.log('🗑️ Screenshots expired, starting fresh');
+        await this.clearStoredScreenshots();
+        return;
+      }
+
+      this.screenshots = result.screenshots;
+      this.activeTimeframe = result.activeTimeframe || null;
+      
+      console.log(`📸 Restored ${Object.keys(this.screenshots).length} screenshots from storage`);
+      
+      // Update gallery and status after loading
+      this.updateGallery();
+      this.updateChatStatus();
+      
+    } catch (error) {
+      console.error('❌ Failed to load screenshots:', error);
+    }
+  }
+
+  async clearStoredScreenshots() {
+    try {
+      await chrome.storage.local.remove(['screenshots', 'screenshots_timestamp', 'activeTimeframe']);
+      console.log('🗑️ Screenshots cleared from storage');
+    } catch (error) {
+      console.error('❌ Failed to clear screenshots:', error);
+    }
+  }
+
+
+
+  clearChatHistory() {
+    const messagesContainer = document.getElementById('chat-messages');
+    if (messagesContainer) {
+      messagesContainer.innerHTML = '';
+      this.clearStoredChatHistory();
+      
+      // Also clear screenshots when clearing chat history
+      this.screenshots = {};
+      this.activeTimeframe = null;
+      this.clearStoredScreenshots();
+      this.updateGallery();
+      this.updateChatStatus();
+      
+      this.addMessage('ai', '🗑️ **Chat History & Screenshots Cleared**\n\nAll previous messages and screenshots have been deleted. Starting fresh! 🚀');
+    }
+  }
+
   addMessage(type, content) {
     const messagesContainer = document.getElementById('chat-messages');
     
@@ -2155,9 +2465,16 @@ Ready to analyze? Click **📸 Analyze Chart** to start! 🚀`);
     
     try {
       contentDiv.innerHTML = formattedContent;
+      // Store original content for chat history persistence
+      if (type === 'ai') {
+        contentDiv.dataset.originalContent = content;
+      }
     } catch (error) {
       console.warn('🔧 innerHTML failed, using textContent fallback:', error);
       contentDiv.textContent = content; // Fallback to plain text
+      if (type === 'ai') {
+        contentDiv.dataset.originalContent = content;
+      }
     }
     
     const timeDiv = document.createElement('div');
@@ -2199,6 +2516,9 @@ Ready to analyze? Click **📸 Analyze Chart** to start! 🚀`);
     // Clean up old messages to prevent memory issues
     this.cleanupOldMessages();
     
+    // Save chat history after adding new message
+    this.saveChatHistory();
+    
     return messageDiv; // Return element for manipulation (e.g., removing loading messages)
   }
 
@@ -2210,6 +2530,11 @@ Ready to analyze? Click **📸 Analyze Chart** to start! 🚀`);
     // Create basic structure first
     const contentDiv = document.createElement('div');
     contentDiv.className = 'message-content';
+    
+    // Store original content for chat history persistence
+    if (type === 'ai') {
+      contentDiv.dataset.originalContent = originalContent;
+    }
     
     const timeDiv = document.createElement('div');
     timeDiv.className = 'message-time';
@@ -2253,6 +2578,9 @@ Ready to analyze? Click **📸 Analyze Chart** to start! 🚀`);
     
     this.messageCount++;
     this.cleanupOldMessages();
+    
+    // Save chat history after adding large message
+    this.saveChatHistory();
     
     return messageDiv;
   }
@@ -2908,6 +3236,9 @@ Use the settings menu to change quality.`);
     // Update gallery UI after clearing screenshots
     this.updateGallery();
     this.updateChatStatus();
+    
+    // Save screenshots to storage after clearing
+    this.saveScreenshots();
     
     // Force garbage collection if available
     this.forceGarbageCollection();

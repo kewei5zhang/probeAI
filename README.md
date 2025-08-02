@@ -25,11 +25,12 @@
 - **Persistent storage** - screenshots saved until manually cleared
 
 ### 💬 **Enhanced Chat Experience**
-- **Persistent chat history** - survives page reloads
+- **Persistent chat history** - survives page reloads (24 hours) with 🗑️ clear button
 - **Custom text selection** with branded highlight colors
 - **Copy functionality** - select any text and use Ctrl+C
 - **Smart message formatting** with structured AI responses
 - **Progressive loading** for large responses (prevents DOM crashes)
+- **Simple memory management** with 50 message limit
 
 ### 📤 **Screenshot Sharing & Export**
 - **Download screenshots** - Save as PNG files with smart naming
@@ -250,6 +251,8 @@
 - ✅ **Console controls** - Switch providers and quality with simple commands
 - ✅ **Comprehensive help system** - Detailed welcome guide and `help()` command
 - ✅ **Usage instructions** - Complete guide for all features in welcome message
+- ✅ **Simple memory management** - 50 message limit with auto-cleanup  
+- ✅ **Memory command** - Type "memory" for current usage status
 
 ### Previous Versions
 - v2.0 - Basic screenshot analysis
